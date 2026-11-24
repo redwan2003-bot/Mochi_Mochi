@@ -1,0 +1,14 @@
+# PlatformIO
+.pio/
+*.pyc
+__pycache__/
+
+# Python virtual environment & builds
+.venv/
+venv/
+build/
+
+# System files
+Thumbs.db
+Desktop.ini
+.DS_Store

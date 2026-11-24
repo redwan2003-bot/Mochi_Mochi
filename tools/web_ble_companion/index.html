@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mochi Bot V1 - Web Bluetooth Companion</title>
+  <meta name="description" content="Official Web Bluetooth Companion Dashboard for Mochi Bot V1 ESP32-S3 Cyber Companion">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cyber: {
+              50: '#ecfeff',
+              100: '#cffafe',
+              200: '#a5f3fc',
+              300: '#67e8f9',
+              400: '#22d3ee',
+              500: '#06b6d4',
+              600: '#0891b2',
+              700: '#0e7490',
+              800: '#155e75',
+              900: '#164e63',
+              950: '#083344',
+            },
+            mochi: {
+              cyan: '#38bdf8',
+              emerald: '#10b981',
+              amber: '#f59e0b',
+              purple: '#818cf8',
+              rose: '#f43f5e'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Menlo', 'Consolas', 'Courier New', 'monospace'],
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif']
+          },
+          boxShadow: {
+            'neon-cyan': '0 0 15px -3px rgba(56, 189, 248, 0.4), 0 0 6px -2px rgba(56, 189, 248, 0.2)',
+            'neon-emerald': '0 0 15px -3px rgba(16, 185, 129, 0.4), 0 0 6px -2px rgba(16, 185, 129, 0.2)',
+            'neon-amber': '0 0 15px -3px rgba(245, 158, 11, 0.4), 0 0 6px -2px rgba(245, 158, 11, 0.2)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    body {
+      background-color: #030712;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(14, 116, 144, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.1) 0%, transparent 45%),
+        linear-gradient(to bottom, #030712, #080f1e);
+      background-attachment: fixed;
+    }
+
+    /* Custom cyber range slider */
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #1e293b;
+      border-radius: 9999px;
+      height: 8px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 8px #38bdf8;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 0 12px #38bdf8;
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 8px #38bdf8;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b1120;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #38bdf8;
+    }
+
+    /* Pixelated screen effect */
+    .oled-canvas {
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.25), inset 0 0 12px rgba(0, 0, 0, 0.8);
+    }
+
+    /* Pulse animation for scanning */
+    @keyframes radar-pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.2; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .radar-pulse {
+      animation: radar-pulse 2s infinite ease-in-out;
+    }
+
+    /* Glassmorphism panel */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(56, 189, 248, 0.12);
+    }
+    .glass-panel:hover {
+      border-color: rgba(56, 189, 248, 0.25);
+    }
+  </style>
+</head>
+<body class="selection:bg-cyan-500 selection:text-black">
+
+  <!-- ========================================================================= -->
+  <!-- TOP NAVIGATION & STATUS BAR -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md px-4 py-3 sm:px-6">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand & Companion Name -->
+      <div class="flex items-center space-x-3">
+        <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 shadow-neon-cyan p-0.5">
+          <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+            <!-- Mochi Bot Icon SVG -->
+            <svg class="w-6 h-6 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="15" rx="4" />
+              <circle cx="8.5" cy="11.5" r="1.5" fill="currentColor" />
+              <circle cx="15.5" cy="11.5" r="1.5" fill="currentColor" />
+              <path d="M10 15c.67.67 2.33.67 3 0" stroke-linecap="round" />
+              <line x1="12" y1="2" x2="12" y2="4" stroke-linecap="round" />
+              <circle cx="12" cy="1.5" r="1" fill="currentColor" />
+            </svg>
+          </div>
+          <!-- Ping dot indicator -->
+          <span id="headerPing" class="absolute -top-1 -right-1 flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-500 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-slate-500"></span>
+          </span>
+        </div>
+
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-1.5">
+              <span>Mochi Bot</span>
+              <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-cyan-300">V1</span>
+            </h1>
+            <span class="text-[11px] font-mono text-slate-400 hidden sm:inline-block">ESP32-S3 BLE 5.0</span>
+          </div>
+          <p class="text-xs text-slate-400">Web Bluetooth Companion Dashboard</p>
+        </div>
+      </div>
+
+      <!-- Live Connection Status Pill & Actions -->
+      <div class="flex items-center flex-wrap gap-2.5 sm:gap-3">
+        
+        <!-- Live Connection State Pill -->
+        <div id="connPill" class="flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 border border-slate-700 text-slate-300 transition-all duration-300 shadow-sm">
+          <span id="connDot" class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+          <span id="connText" class="font-mono">Disconnected</span>
+        </div>
+
+        <!-- Quick Time Sync Header Button -->
+        <button id="quickSyncBtn" onclick="syncTime()" title="Sync local browser time to Mochi clock" class="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
+          <svg class="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span>Sync Time</span>
+        </button>
+
+        <!-- Demo Mode Toggle Pill -->
+        <button id="demoToggleBtn" onclick="toggleDemoMode()" title="Toggle simulated bench demo mode without hardware" class="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-900/50 transition active:scale-95">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+          </svg>
+          <span id="demoBtnLabel">Demo: OFF</span>
+        </button>
+
+        <!-- Connect / Disconnect Primary Button -->
+        <button id="connectBtn" onclick="toggleConnection()" class="flex items-center space-x-2 px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-neon-cyan transition duration-200 active:scale-95">
+          <!-- Bluetooth Icon SVG -->
+          <svg id="btnBtIcon" class="w-4 h-4 text-slate-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5" />
+          </svg>
+          <span id="btnLabel">Connect Mochi</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- BROWSER COMPATIBILITY & SECURITY WARNING BANNERS -->
+  <!-- ========================================================================= -->
+  <div id="alertContainer" class="max-w-7xl mx-auto px-4 sm:px-6 pt-4 space-y-3">
+    <!-- Unsupported Browser Banner (Hidden by default, shown via JS if needed) -->
+    <div id="noBleBanner" class="hidden rounded-xl border border-rose-500/30 bg-rose-950/40 p-4 text-rose-200 shadow-lg">
+      <div class="flex items-start space-x-3">
+        <svg class="w-6 h-6 text-rose-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <div class="flex-1 text-sm">
+          <h3 class="font-semibold text-rose-300">Web Bluetooth Not Available in this Browser</h3>
+          <p class="mt-1 text-xs text-rose-300/80 leading-relaxed">
+            Web Bluetooth is required to communicate directly with Mochi Bot over GATT. Please open this dashboard using 
+            <strong class="text-rose-100">Google Chrome</strong>, <strong class="text-rose-100">Microsoft Edge</strong>, or <strong class="text-rose-100">Opera</strong> on Windows, macOS, ChromeOS, or Android. 
+            (Firefox and iOS Safari do not support the Web Bluetooth standard).
+          </p>
+          <div class="mt-2.5 flex items-center space-x-3">
+            <button onclick="toggleDemoMode(true)" class="px-3 py-1 bg-rose-900/60 hover:bg-rose-800 border border-rose-700/50 rounded-lg text-xs font-medium text-rose-100">
+              Launch Interactive Demo Mode
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- file:// Protocol Security Notice Banner -->
+    <div id="fileProtoBanner" class="hidden rounded-xl border border-amber-500/30 bg-amber-950/40 p-4 text-amber-200 shadow-lg">
+      <div class="flex items-start space-x-3">
+        <svg class="w-6 h-6 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div class="flex-1 text-sm">
+          <h3 class="font-semibold text-amber-300">Local Origin Security Constraint (<code class="text-xs bg-amber-900/50 px-1 py-0.5 rounded font-mono">file://</code> protocol)</h3>
+          <p class="mt-1 text-xs text-amber-300/80 leading-relaxed">
+            For security, Chromium browsers only enable Web Bluetooth on <strong class="text-amber-100">HTTPS</strong> or <strong class="text-amber-100">http://localhost</strong>. 
+            To connect to physical hardware, serve this directory via a local HTTP server:
+          </p>
+          <div class="mt-2 flex items-center space-x-2">
+            <code class="bg-black/50 border border-amber-900/60 px-3 py-1 rounded-md text-xs font-mono text-cyan-300 select-all">python -m http.server 8080</code>
+            <span class="text-xs text-amber-400">then visit <a href="http://localhost:8080" class="underline hover:text-cyan-300">http://localhost:8080</a></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Passkey Pairing Instructions Notice Banner -->
+    <div id="pairingHintBanner" class="hidden rounded-xl border border-cyan-500/30 bg-cyan-950/40 p-3.5 text-cyan-200 shadow-lg">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2.5 text-xs">
+          <span class="flex h-2.5 w-2.5 relative">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+          </span>
+          <span><strong>Bluetooth MITM Pairing:</strong> When pairing, Mochi Bot's OLED screen will display a <strong>6-digit passkey PIN</strong>. Type it into your OS Bluetooth pairing prompt!</span>
+        </div>
+        <button onclick="document.getElementById('pairingHintBanner').classList.add('hidden')" class="text-cyan-400 hover:text-white text-xs px-2 py-0.5">&times; Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN COMPANION INTERFACE -->
+  <!-- ========================================================================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+    <!-- HERO SECTION: VIRTUAL OLED SCREEN & QUICK TELEMETRY -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      
+      <!-- Virtual 128x64 OLED Display Simulator (5 Cols on LG) -->
+      <div class="lg:col-span-5 glass-panel rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden border border-cyan-900/40">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span class="text-xs font-mono uppercase tracking-wider text-cyan-400 font-semibold">1.3" OLED Live Mirror (SH1106)</span>
+          </div>
+          <span class="text-[10px] font-mono text-slate-500">128 × 64 Monochrome</span>
+        </div>
+
+        <!-- OLED Canvas Container -->
+        <div class="flex flex-col items-center justify-center p-3 bg-black/90 rounded-xl border-2 border-slate-800 shadow-inner my-auto">
+          <canvas id="oledCanvas" width="256" height="128" class="oled-canvas rounded border border-cyan-950 bg-black cursor-pointer" title="Click to trigger interactive Mochi wake / chirp"></canvas>
+          <div class="flex items-center justify-between w-full mt-2 text-[10px] font-mono text-slate-400 px-1">
+            <span id="oledModeLabel">MODE: CLOCK CAROUSEL</span>
+            <span class="text-cyan-400">TAP SCREEN TO POKE</span>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+          <span class="flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+            </svg>
+            Auto Eye Blinking & Emotions
+          </span>
+          <button onclick="triggerMochiPoke()" class="text-cyan-400 hover:text-cyan-300 font-medium">Poke Mochi 💖</button>
+        </div>
+      </div>
+
+      <!-- Quick Glance Telemetry Cards (7 Cols on LG) -->
+      <div class="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        
+        <!-- Dock Status Card -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-col justify-between border border-slate-800 hover:border-slate-700 transition">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-medium">Dock State</span>
+            <div id="dockIconWrap" class="p-1.5 rounded-lg bg-slate-800 text-slate-400">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+              </svg>
+            </div>
+          </div>
+          <div>
+            <div id="dockStatusVal" class="text-sm sm:text-base font-bold text-white tracking-tight">Undocked</div>
+            <div id="dockStatusSub" class="text-[11px] text-slate-400 font-mono mt-0.5">Pocket Mode</div>
+          </div>
+        </div>
+
+        <!-- Charging Status Card -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-col justify-between border border-slate-800 hover:border-slate-700 transition">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-medium">Power / Battery</span>
+            <div id="chargeIconWrap" class="p-1.5 rounded-lg bg-slate-800 text-slate-400">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="16" height="10" rx="2" ry="2" />
+                <line x1="22" y1="11" x2="22" y2="13" />
+                <polygon points="10 9 7 13 11 13 8 16 13 11 9 11 11 9" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+          </div>
+          <div>
+            <div id="chargeStatusVal" class="text-sm sm:text-base font-bold text-white tracking-tight">Battery</div>
+            <div id="chargeStatusSub" class="text-[11px] text-slate-400 font-mono mt-0.5">TP4056 Standby</div>
+          </div>
+        </div>
+
+        <!-- Free Heap Card -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-col justify-between border border-slate-800 hover:border-slate-700 transition">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-medium">Free SRAM</span>
+            <div class="p-1.5 rounded-lg bg-slate-800 text-cyan-400">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+                <rect x="9" y="9" width="6" height="6" />
+                <line x1="9" y1="1" x2="9" y2="4" />
+                <line x1="15" y1="1" x2="15" y2="4" />
+                <line x1="9" y1="20" x2="9" y2="23" />
+                <line x1="15" y1="20" x2="15" y2="23" />
+                <line x1="20" y1="9" x2="23" y2="9" />
+                <line x1="20" y1="14" x2="23" y2="14" />
+                <line x1="1" y1="9" x2="4" y2="9" />
+                <line x1="1" y1="14" x2="4" y2="14" />
+              </svg>
+            </div>
+          </div>
+          <div>
+            <div id="heapVal" class="text-sm sm:text-base font-bold text-white font-mono">-- KB</div>
+            <div class="text-[11px] text-slate-400 font-mono mt-0.5">Heap Memory</div>
+          </div>
+        </div>
+
+        <!-- Bot Uptime Card -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-col justify-between border border-slate-800 hover:border-slate-700 transition">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-medium">Mochi Uptime</span>
+            <div class="p-1.5 rounded-lg bg-slate-800 text-indigo-400">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+          </div>
+          <div>
+            <div id="uptimeVal" class="text-sm sm:text-base font-bold text-white font-mono">00:00:00</div>
+            <div class="text-[11px] text-slate-400 font-mono mt-0.5">Since Boot</div>
+          </div>
+        </div>
+
+        <!-- Telemetry Heartbeat Bar (spans 4 cols on SM) -->
+        <div class="col-span-2 sm:col-span-4 glass-panel rounded-xl px-4 py-3 border border-slate-800/80 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-2">
+          <div class="flex items-center space-x-2">
+            <span id="heartbeatDot" class="w-2 h-2 rounded-full bg-slate-600"></span>
+            <span>GATT Status Notify: <span id="lastHeartbeatText" class="font-mono text-slate-300">Awaiting link</span></span>
+          </div>
+          <div class="flex items-center space-x-4 font-mono text-[11px]">
+            <span>TX: <span id="txCount" class="text-cyan-400">0</span> pkts</span>
+            <span>RX: <span id="rxCount" class="text-emerald-400">0</span> pkts</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- SECTION TABS / FEATURE PANELS -->
+    <!-- ======================================================================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- ===================================================================== -->
+      <!-- LEFT COLUMN: TIME SYNC & DRIVING SPEEDOMETER (6 Cols) -->
+      <!-- ===================================================================== -->
+      <div class="lg:col-span-6 space-y-6">
+        
+        <!-- CARD 1: TIME SYNCHRONIZATION -->
+        <div class="glass-panel rounded-2xl p-5 border border-slate-800 relative">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/80">
+            <div class="flex items-center space-x-2.5">
+              <div class="p-2 rounded-xl bg-cyan-950/80 border border-cyan-800 text-cyan-400">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-sm font-bold text-white">Time Synchronization</h2>
+                <p class="text-xs text-slate-400">Sync companion RTC epoch & timezone offset</p>
+              </div>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">UUID 0002</span>
+          </div>
+
+          <!-- Time Display Area -->
+          <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 mb-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div class="text-[11px] text-slate-400 font-medium">Browser Current Time</div>
+                <div id="liveBrowserTime" class="text-xl sm:text-2xl font-mono font-bold text-cyan-400 tracking-wider">--:--:--</div>
+                <div id="liveBrowserDate" class="text-xs text-slate-400 font-mono">-- --- ----</div>
+              </div>
+              <div class="text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-800">
+                <div class="text-[11px] text-slate-400 font-medium">Timezone Offset</div>
+                <div id="liveTzOffset" class="text-xs font-mono font-semibold text-slate-200">UTC+00:00 (0m)</div>
+                <div id="liveEpochSec" class="text-[10px] text-slate-500 font-mono mt-0.5">Epoch: 0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sync Controls -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer select-none">
+              <input type="checkbox" id="autoTimeSync" checked class="rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-0 w-4 h-4">
+              <span>Auto-sync time when connected</span>
+            </label>
+
+            <button onclick="syncTime()" class="px-5 py-2.5 rounded-xl font-medium text-xs sm:text-sm bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-slate-950 font-bold shadow-neon-cyan transition active:scale-95 flex items-center justify-center space-x-2">
+              <svg class="w-4 h-4 text-slate-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+              </svg>
+              <span>Sync Time Now</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- CARD 2: DRIVING MODE & GPS SPEEDOMETER -->
+        <div class="glass-panel rounded-2xl p-5 border border-slate-800 relative">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/80">
+            <div class="flex items-center space-x-2.5">
+              <div class="p-2 rounded-xl bg-emerald-950/80 border border-emerald-800 text-emerald-400">
+                <!-- Gauge Icon -->
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v2M4.93 4.93l1.41 1.41M2 12h2M20 12h2M17.66 6.34l1.41-1.41M15.5 15.5l3.5-3.5" />
+                  <circle cx="12" cy="14" r="8" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-sm font-bold text-white">Driving Mode (Speedometer)</h2>
+                <p class="text-xs text-slate-400">Live GPS telemetry or bench test slider</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span id="drivingModePill" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">STANDBY</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">UUID 0004</span>
+            </div>
+          </div>
+
+          <!-- Speedometer HUD Gauge -->
+          <div class="flex flex-col items-center justify-center py-4 bg-slate-950/60 rounded-xl border border-slate-800/90 relative">
+            
+            <!-- Dynamic Speed Digits -->
+            <div class="relative flex flex-col items-center">
+              <div class="flex items-baseline space-x-2">
+                <span id="speedValueDisplay" class="text-5xl sm:text-6xl font-mono font-extrabold tracking-tight text-white drop-shadow-[0_0_12px_rgba(56,189,248,0.5)]">0</span>
+                <span class="text-base sm:text-lg font-mono font-bold text-cyan-400 uppercase">km/h</span>
+              </div>
+              <div class="flex items-center space-x-2 text-xs text-slate-400 font-mono mt-1">
+                <span>≈ <span id="speedMphDisplay">0.0</span> mph</span>
+                <span>•</span>
+                <span id="speedStatusTag" class="text-emerald-400">Stationary</span>
+              </div>
+            </div>
+
+            <!-- Dynamic Speed Bar -->
+            <div class="w-full max-w-xs mt-4 px-4">
+              <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5">
+                <div id="speedProgressBar" class="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-rose-500 rounded-full transition-all duration-300" style="width: 0%;"></div>
+              </div>
+              <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1 px-1">
+                <span>0</span>
+                <span>40</span>
+                <span>80</span>
+                <span>120</span>
+                <span>160+</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- GPS Controls vs Manual Bench Slider Mode Toggle -->
+          <div class="mt-4 pt-3 border-t border-slate-800/80 space-y-4">
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <button id="modeManualBtn" onclick="setSpeedInputMode('manual')" class="px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-950 border border-cyan-800 text-cyan-300 transition">
+                  Bench Slider
+                </button>
+                <button id="modeGpsBtn" onclick="setSpeedInputMode('gps')" class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-900 border border-slate-700 text-slate-400 hover:text-slate-200 transition">
+                  Live GPS Geolocation
+                </button>
+              </div>
+              <span class="text-[11px] text-slate-500 font-mono">15s Firmware Auto-Zero</span>
+            </div>
+
+            <!-- Manual Slider Controls -->
+            <div id="manualSpeedControl" class="space-y-3">
+              <div class="flex items-center justify-between text-xs text-slate-300">
+                <span>Throttle Test Slider:</span>
+                <span id="sliderValLabel" class="font-mono text-cyan-400 font-bold">0 km/h</span>
+              </div>
+              <input type="range" id="speedSlider" min="0" max="160" value="0" step="1" oninput="onSpeedSliderInput(this.value)" class="w-full">
+              
+              <!-- Quick Preset Buttons -->
+              <div class="grid grid-cols-5 gap-2 pt-1">
+                <button onclick="setSpeedPreset(0)" class="py-1 px-1.5 rounded-lg text-[11px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">0 Stop</button>
+                <button onclick="setSpeedPreset(30)" class="py-1 px-1.5 rounded-lg text-[11px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">30 City</button>
+                <button onclick="setSpeedPreset(60)" class="py-1 px-1.5 rounded-lg text-[11px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">60 Cruise</button>
+                <button onclick="setSpeedPreset(100)" class="py-1 px-1.5 rounded-lg text-[11px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">100 Hwy</button>
+                <button onclick="setSpeedPreset(130)" class="py-1 px-1.5 rounded-lg text-[11px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">130 Fast</button>
+              </div>
+            </div>
+
+            <!-- Live GPS Status Display (Hidden by default, shown when GPS mode selected) -->
+            <div id="gpsStatusControl" class="hidden space-y-3">
+              <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 text-xs space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-slate-400">GPS Status:</span>
+                  <span id="gpsStateText" class="font-mono text-emerald-400 font-semibold">Active Watcher</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-slate-400">GPS Accuracy:</span>
+                  <span id="gpsAccuracyText" class="font-mono text-slate-300">-- m</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-slate-400">Coords (Lat, Lon):</span>
+                  <span id="gpsCoordsText" class="font-mono text-slate-400">Acquiring satellites...</span>
+                </div>
+              </div>
+              <p class="text-[11px] text-slate-400 italic">
+                Note: GPS accuracy depends on mobile device sensors and clear line of sight to sky. When stationary indoors, speed may report 0 km/h.
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- RIGHT COLUMN: NOTIFICATIONS & SETTINGS SYNC (6 Cols) -->
+      <!-- ===================================================================== -->
+      <div class="lg:col-span-6 space-y-6">
+        
+        <!-- CARD 3: NOTIFICATIONS / POPUP ALERTS -->
+        <div class="glass-panel rounded-2xl p-5 border border-slate-800 relative">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/80">
+            <div class="flex items-center space-x-2.5">
+              <div class="p-2 rounded-xl bg-purple-950/80 border border-purple-800 text-purple-400">
+                <!-- Bell Icon -->
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-sm font-bold text-white">Push Notifications</h2>
+                <p class="text-xs text-slate-400">Send transient popup alerts to OLED overlay</p>
+              </div>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">UUID 0003</span>
+          </div>
+
+          <!-- Notification Form -->
+          <div class="space-y-3.5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Sender / Title</label>
+                <input type="text" id="notifSender" value="WhatsApp" maxlength="24" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400 transition" placeholder="e.g. WhatsApp, Slack, Mom">
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="text-xs font-medium text-slate-300">Duration</label>
+                  <span id="durValLabel" class="text-xs font-mono text-cyan-400">5.0s</span>
+                </div>
+                <input type="range" id="notifDuration" min="1000" max="15000" step="500" value="5000" oninput="document.getElementById('durValLabel').innerText = (this.value/1000).toFixed(1) + 's'" class="w-full mt-2">
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-medium text-slate-300">Message Content</label>
+                <span id="charCountLabel" class="text-[11px] font-mono text-slate-500">0 / 64</span>
+              </div>
+              <textarea id="notifMsg" rows="2" maxlength="64" oninput="document.getElementById('charCountLabel').innerText = this.value.length + ' / 64'" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400 transition resize-none" placeholder="Type notification message here...">Meeting with Alice in 5 minutes! ☕</textarea>
+            </div>
+
+            <!-- Quick Preset Buttons -->
+            <div>
+              <span class="text-[11px] font-medium text-slate-400 block mb-1.5">Quick Presets:</span>
+              <div class="flex flex-wrap gap-1.5">
+                <button type="button" onclick="setNotifPreset('WhatsApp', 'Alice: Coffee in 10 mins? ☕', 5000)" class="px-2.5 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">💬 WhatsApp</button>
+                <button type="button" onclick="setNotifPreset('Slack', 'DevOps: Production deploy OK 🚀', 6000)" class="px-2.5 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">🚀 Slack</button>
+                <button type="button" onclick="setNotifPreset('Calendar', 'Standup starting now! 📅', 7000)" class="px-2.5 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">📅 Calendar</button>
+                <button type="button" onclick="setNotifPreset('Phone', 'Incoming call from Mom 📞', 8000)" class="px-2.5 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">📞 Call</button>
+                <button type="button" onclick="setNotifPreset('Battery', 'Battery 15%! Please dock me ⚡', 5000)" class="px-2.5 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">⚡ Low Batt</button>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button onclick="sendNotificationFromForm()" class="w-full py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg transition active:scale-[0.98] flex items-center justify-center space-x-2">
+              <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+              <span>Transmit Notification to Mochi</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- CARD 4: SETTINGS SYNCHRONIZATION -->
+        <div class="glass-panel rounded-2xl p-5 border border-slate-800 relative">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/80">
+            <div class="flex items-center space-x-2.5">
+              <div class="p-2 rounded-xl bg-amber-950/80 border border-amber-800 text-amber-400">
+                <!-- Sliders / Settings Icon -->
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="4" y1="21" x2="4" y2="14" />
+                  <line x1="4" y1="10" x2="4" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12" y2="3" />
+                  <line x1="20" y1="21" x2="20" y2="16" />
+                  <line x1="20" y1="12" x2="20" y2="3" />
+                  <line x1="1" y1="14" x2="7" y2="14" />
+                  <line x1="9" y1="8" x2="15" y2="8" />
+                  <line x1="17" y1="16" x2="23" y2="16" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-sm font-bold text-white">Bot Settings & Storage</h2>
+                <p class="text-xs text-slate-400">Read & persist hardware preferences</p>
+              </div>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">UUID 0005</span>
+          </div>
+
+          <!-- Settings Sliders & Toggles -->
+          <div class="space-y-4">
+            
+            <!-- Sliders Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Dock Brightness -->
+              <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800">
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="font-medium text-slate-300">Dock Brightness</span>
+                  <span id="dockBrtVal" class="font-mono text-cyan-400 font-bold">200 (78%)</span>
+                </div>
+                <input type="range" id="settingDockBrt" min="0" max="255" value="200" oninput="onSettingsChanged()" class="w-full">
+              </div>
+
+              <!-- Portable Brightness -->
+              <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800">
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="font-medium text-slate-300">Portable Brightness</span>
+                  <span id="portBrtVal" class="font-mono text-cyan-400 font-bold">160 (63%)</span>
+                </div>
+                <input type="range" id="settingPortBrt" min="0" max="255" value="160" oninput="onSettingsChanged()" class="w-full">
+              </div>
+            </div>
+
+            <!-- Toggles Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              
+              <!-- Sound Toggle -->
+              <label class="flex items-center justify-between p-3 rounded-xl bg-slate-900/70 border border-slate-800 cursor-pointer hover:border-slate-700 transition">
+                <span class="text-xs font-medium text-slate-300">Sound Audio Chirps</span>
+                <input type="checkbox" id="settingSound" checked onchange="onSettingsChanged()" class="rounded border-slate-700 bg-slate-800 text-cyan-500 focus:ring-0 w-4 h-4">
+              </label>
+
+              <!-- Motion Reaction Toggle -->
+              <label class="flex items-center justify-between p-3 rounded-xl bg-slate-900/70 border border-slate-800 cursor-pointer hover:border-slate-700 transition">
+                <span class="text-xs font-medium text-slate-300">Motion Reactions (MPU6050)</span>
+                <input type="checkbox" id="settingMotion" checked onchange="onSettingsChanged()" class="rounded border-slate-700 bg-slate-800 text-cyan-500 focus:ring-0 w-4 h-4">
+              </label>
+
+              <!-- 24h Time Format Toggle -->
+              <label class="flex items-center justify-between p-3 rounded-xl bg-slate-900/70 border border-slate-800 cursor-pointer hover:border-slate-700 transition">
+                <span class="text-xs font-medium text-slate-300">24-Hour Time Format</span>
+                <input type="checkbox" id="settingTime24h" checked onchange="onSettingsChanged()" class="rounded border-slate-700 bg-slate-800 text-cyan-500 focus:ring-0 w-4 h-4">
+              </label>
+
+              <!-- Auto Rotate Interval Selection -->
+              <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-300">Card Rotate</span>
+                <select id="settingCardRot" onchange="onSettingsChanged()" class="bg-slate-800 border border-slate-700 rounded-lg text-xs text-white px-2 py-1 focus:outline-none">
+                  <option value="0">Off (Manual)</option>
+                  <option value="5">Every 5s</option>
+                  <option value="10" selected>Every 10s</option>
+                  <option value="30">Every 30s</option>
+                </select>
+              </div>
+
+            </div>
+
+            <!-- Settings Action Buttons -->
+            <div class="flex items-center justify-between pt-2">
+              <button onclick="readSettings()" class="px-3 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center space-x-1.5">
+                <svg class="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="1 4 1 10 7 10" />
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
+                <span>Read From Bot</span>
+              </button>
+
+              <button onclick="writeSettingsFromUI()" class="px-5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-neon-amber transition active:scale-95 flex items-center space-x-1.5">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                <span>Save to Mochi</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 3: LIVE BLE CONSOLE & PACKET INSPECTOR -->
+    <!-- ======================================================================= -->
+    <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center space-x-2">
+          <!-- Terminal Icon -->
+          <svg class="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 17 10 11 4 5" />
+            <line x1="12" y1="19" x2="20" y2="19" />
+          </svg>
+          <h3 class="text-xs sm:text-sm font-bold text-white tracking-wide">BLE Telemetry & Packet Log</h3>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="clearLogs()" class="text-xs text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-900 border border-slate-800">Clear</button>
+        </div>
+      </div>
+
+      <!-- Log Terminal Box -->
+      <div id="logConsole" class="bg-black/90 rounded-xl p-3 border border-slate-800 h-44 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-1 text-slate-300 select-text">
+        <div class="text-slate-500">[SYS] Ready. Click "Connect Mochi" or enable "Demo Mode" to begin.</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- TOAST NOTIFICATIONS POPUP -->
+  <!-- ========================================================================= -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center space-x-2 bg-slate-900 text-white border border-slate-700">
+    <span id="toastIcon">✨</span>
+    <span id="toastMsg">Notification message</span>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- COMPANION JAVASCRIPT LOGIC -->
+  <!-- ========================================================================= -->
+  <script>
+    // =========================================================================
+    // GATT Service & Characteristic UUID Definitions
+    // =========================================================================
+    const MOCHI_SERVICE_UUID        = "a8590001-6d6f-6368-692d-626f74207631";
+    const MOCHI_CHAR_TIME_SYNC_UUID = "a8590002-6d6f-6368-692d-626f74207631";
+    const MOCHI_CHAR_NOTIF_UUID     = "a8590003-6d6f-6368-692d-626f74207631";
+    const MOCHI_CHAR_SPEED_UUID     = "a8590004-6d6f-6368-692d-626f74207631";
+    const MOCHI_CHAR_SETTINGS_UUID  = "a8590005-6d6f-6368-692d-626f74207631";
+    const MOCHI_CHAR_STATUS_UUID    = "a8590006-6d6f-6368-692d-626f74207631";
+
+    // =========================================================================
+    // Application State
+    // =========================================================================
+    let bleDevice = null;
+    let bleServer = null;
+    let bleService = null;
+
+    let charTimeSync = null;
+    let charNotif = null;
+    let charSpeed = null;
+    let charSettings = null;
+    let charStatus = null;
+
+    let connectionState = 'disconnected'; // disconnected, scanning, connecting, paired
+    let demoMode = false;
+    let demoInterval = null;
+
+    let txCounter = 0;
+    let rxCounter = 0;
+
+    // Driving mode & GPS state
+    let speedInputMode = 'manual'; // 'manual' or 'gps'
+    let currentSpeedKmh = 0;
+    let gpsWatchId = null;
+    let lastSpeedTransmitMs = 0;
+    let pendingSpeedKmh = null;
+
+    // OLED Mirror State
+    let oledState = {
+      mode: 'clock', // clock, notif, speed
+      hours: 12,
+      minutes: 0,
+      seconds: 0,
+      blinkPhase: 0, // 0 = open, 1 = half, 2 = closed
+      notifSender: '',
+      notifMsg: '',
+      notifEndTime: 0,
+      speedKmh: 0,
+      isDocked: false,
+      isCharging: false,
+      pokeTime: 0
+    };
+
+    // =========================================================================
+    // Initialization & Environment Verification
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      checkBrowserCompatibility();
+      initOLEDCanvas();
+      startClockUpdater();
+      updateSettingsDisplayValues();
+
+      // Check URL parameters for auto demo
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('demo') === '1') {
+        toggleDemoMode(true);
+      }
+    });
+
+    function checkBrowserCompatibility() {
+      const isFileProtocol = window.location.protocol === 'file:';
+      const hasBle = 'bluetooth' in navigator;
+
+      if (!hasBle) {
+        document.getElementById('noBleBanner').classList.remove('hidden');
+      }
+
+      if (isFileProtocol) {
+        document.getElementById('fileProtoBanner').classList.remove('hidden');
+      }
+    }
+
+    // =========================================================================
+    // UI Helpers & Logging
+    // =========================================================================
+    function log(message, type = 'info') {
+      const consoleEl = document.getElementById('logConsole');
+      if (!consoleEl) return;
+
+      const timeStr = new Date().toTimeString().split(' ')[0] + '.' + String(Date.now() % 1000).padStart(3, '0');
+      let colorClass = 'text-slate-300';
+      let tag = '[INFO]';
+
+      if (type === 'success') {
+        colorClass = 'text-emerald-400 font-semibold';
+        tag = '[SUCCESS]';
+      } else if (type === 'error') {
+        colorClass = 'text-rose-400 font-semibold';
+        tag = '[ERROR]';
+      } else if (type === 'warning') {
+        colorClass = 'text-amber-400';
+        tag = '[WARN]';
+      } else if (type === 'tx') {
+        colorClass = 'text-cyan-400';
+        tag = '[TX -> BOT]';
+        txCounter++;
+        document.getElementById('txCount').innerText = txCounter;
+      } else if (type === 'rx') {
+        colorClass = 'text-indigo-300';
+        tag = '[RX <- BOT]';
+        rxCounter++;
+        document.getElementById('rxCount').innerText = rxCounter;
+      }
+
+      const row = document.createElement('div');
+      row.className = `${colorClass} break-words`;
+      row.innerHTML = `<span class="text-slate-500">${timeStr}</span> ${tag} ${escapeHtml(message)}`;
+      consoleEl.appendChild(row);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    function clearLogs() {
+      const consoleEl = document.getElementById('logConsole');
+      consoleEl.innerHTML = `<div class="text-slate-500">[SYS] Log cleared.</div>`;
+    }
+
+    function escapeHtml(str) {
+      if (typeof str !== 'string') return String(str);
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastMsg.innerText = message;
+      if (type === 'success') {
+        toastIcon.innerText = '✅';
+        toast.className = 'fixed bottom-5 right-5 z-50 transform translate-y-0 opacity-100 transition-all duration-300 px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center space-x-2 bg-emerald-950 text-emerald-100 border border-emerald-700';
+      } else if (type === 'error') {
+        toastIcon.innerText = '⚠️';
+        toast.className = 'fixed bottom-5 right-5 z-50 transform translate-y-0 opacity-100 transition-all duration-300 px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center space-x-2 bg-rose-950 text-rose-100 border border-rose-700';
+      } else {
+        toastIcon.innerText = '✨';
+        toast.className = 'fixed bottom-5 right-5 z-50 transform translate-y-0 opacity-100 transition-all duration-300 px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center space-x-2 bg-slate-900 text-white border border-slate-700';
+      }
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3200);
+    }
+
+    function updateConnectionStatus(state) {
+      connectionState = state;
+      const pill = document.getElementById('connPill');
+      const dot = document.getElementById('connDot');
+      const text = document.getElementById('connText');
+      const btn = document.getElementById('connectBtn');
+      const btnLabel = document.getElementById('btnLabel');
+      const headerPing = document.getElementById('headerPing');
+
+      if (state === 'disconnected') {
+        pill.className = 'flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 border border-slate-700 text-slate-300 shadow-sm';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+        text.innerText = 'Disconnected';
+        btnLabel.innerText = 'Connect Mochi';
+        btn.className = 'flex items-center space-x-2 px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-neon-cyan transition duration-200 active:scale-95';
+        headerPing.innerHTML = '<span class="relative inline-flex rounded-full h-3 w-3 bg-slate-600"></span>';
+      } else if (state === 'scanning') {
+        pill.className = 'flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-950/70 border border-amber-700 text-amber-200 shadow-sm';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 radar-pulse';
+        text.innerText = 'Scanning...';
+        btnLabel.innerText = 'Scanning...';
+        headerPing.innerHTML = '<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-amber-400"></span>';
+      } else if (state === 'connecting') {
+        pill.className = 'flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-cyan-950/70 border border-cyan-700 text-cyan-200 shadow-sm';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin';
+        text.innerText = 'Connecting...';
+        btnLabel.innerText = 'Negotiating Link...';
+        headerPing.innerHTML = '<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-cyan-400"></span>';
+      } else if (state === 'paired') {
+        pill.className = 'flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-950/80 border border-emerald-600 text-emerald-200 shadow-neon-emerald';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+        text.innerText = demoMode ? 'Demo Paired' : 'Paired (Mochi-Bot)';
+        btnLabel.innerText = 'Disconnect';
+        btn.className = 'flex items-center space-x-2 px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-lg transition duration-200 active:scale-95';
+        headerPing.innerHTML = '<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-400"></span>';
+      }
+    }
+
+    // =========================================================================
+    // Web Bluetooth Connection Engine
+    // =========================================================================
+    async function toggleConnection() {
+      if (demoMode) {
+        toggleDemoMode(false);
+        return;
+      }
+
+      if (bleDevice && bleDevice.gatt.connected) {
+        disconnectDevice();
+      } else {
+        connectDevice();
+      }
+    }
+
+    async function connectDevice() {
+      if (!('bluetooth' in navigator)) {
+        showToast('Web Bluetooth is not supported in this browser', 'error');
+        log('Web Bluetooth API missing. Use Chrome or Edge over HTTPS.', 'error');
+        return;
+      }
+
+      updateConnectionStatus('scanning');
+      document.getElementById('pairingHintBanner').classList.remove('hidden');
+      log('Requesting Bluetooth device matching "Mochi-Bot" and Service ' + MOCHI_SERVICE_UUID + '...');
+
+      try {
+        bleDevice = await navigator.bluetooth.requestDevice({
+          filters: [
+            { name: 'Mochi-Bot' },
+            { namePrefix: 'Mochi' },
+            { services: [MOCHI_SERVICE_UUID] }
+          ],
+          optionalServices: [MOCHI_SERVICE_UUID]
+        });
+
+        bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+        log(`Device selected: "${bleDevice.name}" (${bleDevice.id}). Establishing GATT connection...`);
+
+        updateConnectionStatus('connecting');
+        bleServer = await bleDevice.gatt.connect();
+        log('GATT Server connected. Discovering primary service ' + MOCHI_SERVICE_UUID + '...', 'info');
+
+        bleService = await bleServer.getPrimaryService(MOCHI_SERVICE_UUID);
+        log('Primary Mochi Service found. Enumerating characteristics...', 'info');
+
+        // Resolve Characteristics
+        try {
+          charTimeSync = await bleService.getCharacteristic(MOCHI_CHAR_TIME_SYNC_UUID);
+          log('  Found Time Sync Characteristic (0002)');
+        } catch (e) { log('  Missing Time Sync Char: ' + e.message, 'warning'); }
+
+        try {
+          charNotif = await bleService.getCharacteristic(MOCHI_CHAR_NOTIF_UUID);
+          log('  Found Notifications Characteristic (0003)');
+        } catch (e) { log('  Missing Notifications Char: ' + e.message, 'warning'); }
+
+        try {
+          charSpeed = await bleService.getCharacteristic(MOCHI_CHAR_SPEED_UUID);
+          log('  Found Speed Characteristic (0004)');
+        } catch (e) { log('  Missing Speed Char: ' + e.message, 'warning'); }
+
+        try {
+          charSettings = await bleService.getCharacteristic(MOCHI_CHAR_SETTINGS_UUID);
+          log('  Found Settings Sync Characteristic (0005)');
+        } catch (e) { log('  Missing Settings Char: ' + e.message, 'warning'); }
+
+        try {
+          charStatus = await bleService.getCharacteristic(MOCHI_CHAR_STATUS_UUID);
+          log('  Found Status Characteristic (0006)');
+
+          // Subscribe to Status notifications
+          log('Subscribing to live telemetry notifications on 0006...');
+          await charStatus.startNotifications();
+          charStatus.addEventListener('characteristicvaluechanged', handleStatusTelemetryUpdate);
+          log('Live telemetry subscription active.', 'success');
+        } catch (e) { log('  Status Char subscription failed: ' + e.message, 'warning'); }
+
+        updateConnectionStatus('paired');
+        showToast('Connected to Mochi-Bot!', 'success');
+        log('Connected and paired with Mochi-Bot successfully! 🎉', 'success');
+
+        // Initial settings pull
+        if (charSettings) {
+          await readSettings();
+        }
+
+        // Auto time sync if checked
+        if (document.getElementById('autoTimeSync').checked && charTimeSync) {
+          await syncTime();
+        }
+
+      } catch (err) {
+        log('Connection aborted or failed: ' + err.message, 'error');
+        updateConnectionStatus('disconnected');
+        showToast('Connection failed: ' + err.message, 'error');
+      }
+    }
+
+    function disconnectDevice() {
+      if (bleDevice && bleDevice.gatt.connected) {
+        log('Disconnecting from Mochi-Bot...');
+        bleDevice.gatt.disconnect();
+      }
+      onDisconnected();
+    }
+
+    function onDisconnected() {
+      log('Companion disconnected from Mochi-Bot.', 'warning');
+      updateConnectionStatus('disconnected');
+      charTimeSync = null;
+      charNotif = null;
+      charSpeed = null;
+      charSettings = null;
+      charStatus = null;
+      document.getElementById('lastHeartbeatText').innerText = 'Disconnected';
+      document.getElementById('heartbeatDot').className = 'w-2 h-2 rounded-full bg-slate-600';
+    }
+
+    // =========================================================================
+    // Status Telemetry Notification Handler (UUID 0006)
+    // =========================================================================
+    function handleStatusTelemetryUpdate(event) {
+      try {
+        const val = event.target.value;
+        const text = new TextDecoder().decode(val);
+        log(text, 'rx');
+        const data = JSON.parse(text);
+        applyStatusTelemetryToUI(data);
+      } catch (err) {
+        log('Error parsing status telemetry: ' + err.message, 'error');
+      }
+    }
+
+    function applyStatusTelemetryToUI(data) {
+      // Pulse heartbeat
+      const dot = document.getElementById('heartbeatDot');
+      dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+      setTimeout(() => { dot.className = 'w-2 h-2 rounded-full bg-emerald-500'; }, 600);
+      document.getElementById('lastHeartbeatText').innerText = new Date().toLocaleTimeString();
+
+      // Dock state
+      if (typeof data.dock !== 'undefined') {
+        oledState.isDocked = !!data.dock;
+        const dockVal = document.getElementById('dockStatusVal');
+        const dockSub = document.getElementById('dockStatusSub');
+        const dockWrap = document.getElementById('dockIconWrap');
+
+        if (data.dock) {
+          dockVal.innerText = 'Docked 🧲';
+          dockSub.innerText = 'Desk Pet Mode';
+          dockWrap.className = 'p-1.5 rounded-lg bg-cyan-950 border border-cyan-800 text-cyan-400';
+        } else {
+          dockVal.innerText = 'Undocked';
+          dockSub.innerText = 'Pocket Mode';
+          dockWrap.className = 'p-1.5 rounded-lg bg-slate-800 text-slate-400';
+        }
+      }
+
+      // Charge state
+      if (typeof data.chrg !== 'undefined') {
+        oledState.isCharging = !!data.chrg;
+        const chargeVal = document.getElementById('chargeStatusVal');
+        const chargeSub = document.getElementById('chargeStatusSub');
+        const chargeWrap = document.getElementById('chargeIconWrap');
+
+        if (data.chrg) {
+          chargeVal.innerText = 'Charging ⚡';
+          chargeSub.innerText = 'Active TP4056';
+          chargeWrap.className = 'p-1.5 rounded-lg bg-emerald-950 border border-emerald-800 text-emerald-400';
+        } else {
+          chargeVal.innerText = 'Battery';
+          chargeSub.innerText = 'Discharging/Full';
+          chargeWrap.className = 'p-1.5 rounded-lg bg-slate-800 text-slate-400';
+        }
+      }
+
+      // Heap
+      if (typeof data.heap !== 'undefined') {
+        const kb = (data.heap / 1024).toFixed(1);
+        document.getElementById('heapVal').innerText = `${kb} KB`;
+      }
+
+      // Uptime
+      if (typeof data.uptime !== 'undefined') {
+        const u = data.uptime;
+        const hrs = String(Math.floor(u / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((u % 3600) / 60)).padStart(2, '0');
+        const secs = String(u % 60).padStart(2, '0');
+        document.getElementById('uptimeVal').innerText = `${hrs}:${mins}:${secs}`;
+      }
+    }
+
+    // =========================================================================
+    // Time Synchronization (UUID 0002)
+    // =========================================================================
+    async function syncTime() {
+      const now = new Date();
+      const epoch = Math.floor(now.getTime() / 1000);
+      const tzOffsetMin = -now.getTimezoneOffset(); // e.g. UTC+6 = +360
+
+      const payloadObj = { epoch: epoch, tz: tzOffsetMin };
+      const payloadJson = JSON.stringify(payloadObj);
+
+      if (demoMode) {
+        log(`Synced time: ${payloadJson}`, 'tx');
+        showToast('Time synchronized to Mochi (Demo Mode)', 'success');
+        return;
+      }
+
+      if (!charTimeSync) {
+        showToast('Mochi-Bot is not connected', 'error');
+        return;
+      }
+
+      try {
+        const bytes = new TextEncoder().encode(payloadJson);
+        if (charTimeSync.writeValueWithoutResponse) {
+          await charTimeSync.writeValueWithoutResponse(bytes);
+        } else {
+          await charTimeSync.writeValue(bytes);
+        }
+        log(`Time synced: ${payloadJson}`, 'tx');
+        showToast('RTC Time synchronized to Mochi Bot!', 'success');
+      } catch (err) {
+        log('Time sync error: ' + err.message, 'error');
+        showToast('Failed to sync time', 'error');
+      }
+    }
+
+    function startClockUpdater() {
+      setInterval(() => {
+        const now = new Date();
+        const hrs = String(now.getHours()).padStart(2, '0');
+        const mins = String(now.getMinutes()).padStart(2, '0');
+        const secs = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('liveBrowserTime').innerText = `${hrs}:${mins}:${secs}`;
+
+        const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+        document.getElementById('liveBrowserDate').innerText = now.toLocaleDateString(undefined, options);
+
+        const tzOffset = -now.getTimezoneOffset();
+        const sign = tzOffset >= 0 ? '+' : '-';
+        const offHours = String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, '0');
+        const offMins = String(Math.abs(tzOffset) % 60).padStart(2, '0');
+        document.getElementById('liveTzOffset').innerText = `UTC${sign}${offHours}:${offMins} (${tzOffset > 0 ? '+' : ''}${tzOffset}m)`;
+        document.getElementById('liveEpochSec').innerText = `Epoch: ${Math.floor(now.getTime() / 1000)}`;
+
+        // Update OLED simulator time
+        oledState.hours = now.getHours();
+        oledState.minutes = now.getMinutes();
+        oledState.seconds = now.getSeconds();
+      }, 1000);
+    }
+
+    // =========================================================================
+    // Push Notifications (UUID 0003)
+    // =========================================================================
+    function setNotifPreset(sender, msg, durationMs) {
+      document.getElementById('notifSender').value = sender;
+      document.getElementById('notifMsg').value = msg;
+      document.getElementById('notifDuration').value = durationMs;
+      document.getElementById('durValLabel').innerText = (durationMs / 1000).toFixed(1) + 's';
+      document.getElementById('charCountLabel').innerText = msg.length + ' / 64';
+    }
+
+    async function sendNotificationFromForm() {
+      const sender = document.getElementById('notifSender').value.trim() || 'Alert';
+      const msg = document.getElementById('notifMsg').value.trim();
+      const dur = parseInt(document.getElementById('notifDuration').value, 10) || 5000;
+
+      if (!msg) {
+        showToast('Please enter a message', 'warning');
+        return;
+      }
+
+      await sendNotification(sender, msg, dur);
+    }
+
+    async function sendNotification(sender, msg, durationMs) {
+      const payloadObj = {
+        sender: sender,
+        msg: msg,
+        dur: durationMs
+      };
+      const payloadJson = JSON.stringify(payloadObj);
+
+      // Trigger local OLED simulator display
+      triggerOLEDNotification(sender, msg, durationMs);
+
+      if (demoMode) {
+        log(`Transmitted Notification: ${payloadJson}`, 'tx');
+        showToast(`Sent "${sender}" alert (Demo Mode)`, 'success');
+        return;
+      }
+
+      if (!charNotif) {
+        showToast('Mochi-Bot is not connected', 'error');
+        return;
+      }
+
+      try {
+        const bytes = new TextEncoder().encode(payloadJson);
+        await charNotif.writeValue(bytes);
+        log(`Notification transmitted: ${payloadJson}`, 'tx');
+        showToast(`Alert sent to Mochi's display!`, 'success');
+      } catch (err) {
+        log('Notification transmit error: ' + err.message, 'error');
+        showToast('Failed to send notification', 'error');
+      }
+    }
+
+    // =========================================================================
+    // Driving Mode Speedometer (UUID 0004)
+    // =========================================================================
+    function setSpeedInputMode(mode) {
+      speedInputMode = mode;
+      const manualBtn = document.getElementById('modeManualBtn');
+      const gpsBtn = document.getElementById('modeGpsBtn');
+      const manualCtrl = document.getElementById('manualSpeedControl');
+      const gpsCtrl = document.getElementById('gpsStatusControl');
+
+      if (mode === 'manual') {
+        manualBtn.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-950 border border-cyan-800 text-cyan-300 transition';
+        gpsBtn.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-slate-900 border border-slate-700 text-slate-400 hover:text-slate-200 transition';
+        manualCtrl.classList.remove('hidden');
+        gpsCtrl.classList.add('hidden');
+        stopGPSWatcher();
+      } else {
+        gpsBtn.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-950 border border-emerald-800 text-emerald-300 transition';
+        manualBtn.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-slate-900 border border-slate-700 text-slate-400 hover:text-slate-200 transition';
+        manualCtrl.classList.add('hidden');
+        gpsCtrl.classList.remove('hidden');
+        startGPSWatcher();
+      }
+    }
+
+    function onSpeedSliderInput(val) {
+      const speed = parseInt(val, 10);
+      document.getElementById('sliderValLabel').innerText = `${speed} km/h`;
+      updateSpeedDisplay(speed);
+      queueSpeedTransmission(speed);
+    }
+
+    function setSpeedPreset(speed) {
+      document.getElementById('speedSlider').value = speed;
+      onSpeedSliderInput(speed);
+    }
+
+    function updateSpeedDisplay(speedKmh) {
+      currentSpeedKmh = speedKmh;
+      oledState.speedKmh = speedKmh;
+      document.getElementById('speedValueDisplay').innerText = speedKmh;
+      document.getElementById('speedMphDisplay').innerText = (speedKmh * 0.621371).toFixed(1);
+
+      // Progress bar percentage (max 160)
+      const pct = Math.min(100, Math.round((speedKmh / 160) * 100));
+      document.getElementById('speedProgressBar').style.width = pct + '%';
+
+      // Status pill & tags
+      const pill = document.getElementById('drivingModePill');
+      const tag = document.getElementById('speedStatusTag');
+
+      if (speedKmh > 0) {
+        pill.innerText = 'DRIVING MODE';
+        pill.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 border border-emerald-700 text-emerald-300 animate-pulse';
+        if (speedKmh < 45) {
+          tag.innerText = 'City Driving';
+          tag.className = 'text-cyan-400';
+        } else if (speedKmh < 90) {
+          tag.innerText = 'Cruising';
+          tag.className = 'text-emerald-400';
+        } else {
+          tag.innerText = 'Highway Speed';
+          tag.className = 'text-amber-400 font-bold';
+        }
+      } else {
+        pill.innerText = 'STANDBY';
+        pill.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400';
+        tag.innerText = 'Stationary';
+        tag.className = 'text-slate-400';
+      }
+    }
+
+    function queueSpeedTransmission(speedKmh) {
+      pendingSpeedKmh = speedKmh;
+      const now = Date.now();
+      // Throttle BLE transmits to max once every 350ms to prevent buffer overflow
+      if (now - lastSpeedTransmitMs >= 350) {
+        transmitSpeed(speedKmh);
+      }
+    }
+
+    async function transmitSpeed(speedKmh) {
+      lastSpeedTransmitMs = Date.now();
+      pendingSpeedKmh = null;
+
+      const clamped = Math.min(255, Math.max(0, Math.round(speedKmh)));
+
+      if (demoMode) {
+        log(`Speed transmit: ${clamped} km/h`, 'tx');
+        return;
+      }
+
+      if (!charSpeed) return;
+
+      try {
+        // Transmit 1-byte binary uint8 for minimal radio latency
+        const buf = new Uint8Array([clamped]);
+        if (charSpeed.writeValueWithoutResponse) {
+          await charSpeed.writeValueWithoutResponse(buf);
+        } else {
+          await charSpeed.writeValue(buf);
+        }
+        log(`Speed updated: ${clamped} km/h`, 'tx');
+      } catch (err) {
+        log('Speed transmit error: ' + err.message, 'error');
+      }
+    }
+
+    // GPS Geolocation API
+    function startGPSWatcher() {
+      if (!('geolocation' in navigator)) {
+        showToast('Geolocation not available in this browser', 'error');
+        document.getElementById('gpsStateText').innerText = 'Not Supported';
+        return;
+      }
+
+      document.getElementById('gpsStateText').innerText = 'Requesting Permission...';
+      gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          document.getElementById('gpsStateText').innerText = 'Locked (Active)';
+          const acc = pos.coords.accuracy ? Math.round(pos.coords.accuracy) : null;
+          document.getElementById('gpsAccuracyText').innerText = acc ? `±${acc} meters` : 'High';
+          document.getElementById('gpsCoordsText').innerText = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+
+          let speedKmh = 0;
+          if (pos.coords.speed !== null && pos.coords.speed > 0) {
+            speedKmh = Math.round(pos.coords.speed * 3.6); // m/s to km/h
+          }
+          updateSpeedDisplay(speedKmh);
+          queueSpeedTransmission(speedKmh);
+        },
+        (err) => {
+          document.getElementById('gpsStateText').innerText = 'Error: ' + err.message;
+          log('Geolocation error: ' + err.message, 'warning');
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 1000,
+          timeout: 10000
+        }
+      );
+    }
+
+    function stopGPSWatcher() {
+      if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+      }
+    }
+
+    // =========================================================================
+    // Settings Synchronization (UUID 0005)
+    // =========================================================================
+    function updateSettingsDisplayValues() {
+      const dockBrt = document.getElementById('settingDockBrt').value;
+      const portBrt = document.getElementById('settingPortBrt').value;
+      document.getElementById('dockBrtVal').innerText = `${dockBrt} (${Math.round(dockBrt/2.55)}%)`;
+      document.getElementById('portBrtVal').innerText = `${portBrt} (${Math.round(portBrt/2.55)}%)`;
+    }
+
+    function onSettingsChanged() {
+      updateSettingsDisplayValues();
+    }
+
+    async function readSettings() {
+      if (demoMode) {
+        log('Read settings (Demo Mode): {"dock_brt":200,"port_brt":160,"sound":true,"motion":true,"time_24h":true,"card_rot":10}', 'rx');
+        showToast('Settings pulled from Mochi (Demo)');
+        return;
+      }
+
+      if (!charSettings) {
+        showToast('Mochi-Bot is not connected', 'error');
+        return;
+      }
+
+      try {
+        const val = await charSettings.readValue();
+        const text = new TextDecoder().decode(val);
+        log(`Settings read: ${text}`, 'rx');
+        const s = JSON.parse(text);
+
+        if (typeof s.dock_brt !== 'undefined') document.getElementById('settingDockBrt').value = s.dock_brt;
+        if (typeof s.port_brt !== 'undefined') document.getElementById('settingPortBrt').value = s.port_brt;
+        if (typeof s.sound !== 'undefined') document.getElementById('settingSound').checked = !!s.sound;
+        if (typeof s.motion !== 'undefined') document.getElementById('settingMotion').checked = !!s.motion;
+        if (typeof s.time_24h !== 'undefined') document.getElementById('settingTime24h').checked = !!s.time_24h;
+        if (typeof s.card_rot !== 'undefined') document.getElementById('settingCardRot').value = s.card_rot;
+
+        updateSettingsDisplayValues();
+        showToast('Settings updated from Mochi-Bot', 'success');
+      } catch (err) {
+        log('Read settings error: ' + err.message, 'error');
+        showToast('Failed to read settings', 'error');
+      }
+    }
+
+    async function writeSettingsFromUI() {
+      const settingsObj = {
+        dock_brt: parseInt(document.getElementById('settingDockBrt').value, 10),
+        port_brt: parseInt(document.getElementById('settingPortBrt').value, 10),
+        sound: document.getElementById('settingSound').checked,
+        motion: document.getElementById('settingMotion').checked,
+        time_24h: document.getElementById('settingTime24h').checked,
+        card_rot: parseInt(document.getElementById('settingCardRot').value, 10)
+      };
+
+      const jsonStr = JSON.stringify(settingsObj);
+
+      if (demoMode) {
+        log(`Saved Settings to Bot (Demo): ${jsonStr}`, 'tx');
+        showToast('Settings persisted to Mochi (Demo)', 'success');
+        return;
+      }
+
+      if (!charSettings) {
+        showToast('Mochi-Bot is not connected', 'error');
+        return;
+      }
+
+      try {
+        const bytes = new TextEncoder().encode(jsonStr);
+        await charSettings.writeValue(bytes);
+        log(`Settings saved: ${jsonStr}`, 'tx');
+        showToast('Settings saved to Mochi-Bot Flash!', 'success');
+      } catch (err) {
+        log('Save settings error: ' + err.message, 'error');
+        showToast('Failed to save settings', 'error');
+      }
+    }
+
+    // =========================================================================
+    // Demo Mode Engine (Simulate ESP32-S3 behavior without hardware)
+    // =========================================================================
+    function toggleDemoMode(forceState) {
+      demoMode = (typeof forceState === 'boolean') ? forceState : !demoMode;
+      const label = document.getElementById('demoBtnLabel');
+
+      if (demoMode) {
+        label.innerText = 'Demo: ON';
+        updateConnectionStatus('paired');
+        log('Interactive Demo Mode enabled! Simulating Mochi-Bot ESP32-S3 telemetry...', 'success');
+        showToast('Demo Mode Enabled (Simulated Bot)', 'info');
+
+        let simUptime = 360;
+        let simDock = true;
+        let simCharge = true;
+
+        if (demoInterval) clearInterval(demoInterval);
+        demoInterval = setInterval(() => {
+          simUptime += 5;
+          applyStatusTelemetryToUI({
+            dock: simDock,
+            chrg: simCharge,
+            heap: 194560 - Math.floor(Math.random() * 4000),
+            uptime: simUptime
+          });
+        }, 5000);
+
+        // Immediate initial burst
+        applyStatusTelemetryToUI({
+          dock: true,
+          chrg: true,
+          heap: 194240,
+          uptime: simUptime
+        });
+
+      } else {
+        label.innerText = 'Demo: OFF';
+        if (demoInterval) {
+          clearInterval(demoInterval);
+          demoInterval = null;
+        }
+        updateConnectionStatus('disconnected');
+        log('Demo mode disabled.', 'info');
+        showToast('Demo Mode Disabled');
+      }
+    }
+
+    // =========================================================================
+    // Virtual 128x64 Monochrome OLED Simulator Canvas
+    // =========================================================================
+    let canvas, ctx;
+
+    function initOLEDCanvas() {
+      canvas = document.getElementById('oledCanvas');
+      if (!canvas) return;
+      ctx = canvas.getContext('2d');
+      canvas.addEventListener('click', triggerMochiPoke);
+
+      // Start 30fps animation loop
+      requestAnimationFrame(renderOLEDLoop);
+    }
+
+    function triggerMochiPoke() {
+      oledState.pokeTime = Date.now();
+      showToast('Mochi was poked! (* ^ ω ^)', 'info');
+    }
+
+    function triggerOLEDNotification(sender, msg, durationMs) {
+      oledState.notifSender = sender;
+      oledState.notifMsg = msg;
+      oledState.notifEndTime = Date.now() + durationMs;
+      oledState.notifTotalDuration = durationMs;
+    }
+
+    function renderOLEDLoop() {
+      const now = Date.now();
+      const w = 128;
+      const h = 64;
+
+      // Virtual buffer offscreen
+      if (!window.offscreenCanvas) {
+        window.offscreenCanvas = document.createElement('canvas');
+        window.offscreenCanvas.width = w;
+        window.offscreenCanvas.height = h;
+        window.offCtx = window.offscreenCanvas.getContext('2d');
+      }
+      const oc = window.offCtx;
+
+      // Clear dark background
+      oc.fillStyle = '#050a14';
+      oc.fillRect(0, 0, w, h);
+
+      // Draw active mode
+      const isDriving = oledState.speedKmh > 0;
+      const isNotifActive = now < oledState.notifEndTime;
+
+      if (isNotifActive) {
+        document.getElementById('oledModeLabel').innerText = 'MODE: NOTIFICATION POPUP';
+        renderOLEDNotifScreen(oc, now, w, h);
+      } else if (isDriving) {
+        document.getElementById('oledModeLabel').innerText = 'MODE: GPS SPEEDOMETER';
+        renderOLEDSpeedScreen(oc, w, h);
+      } else {
+        document.getElementById('oledModeLabel').innerText = 'MODE: COMPANION CLOCK & FACE';
+        renderOLEDNormalScreen(oc, now, w, h);
+      }
+
+      // Blit offscreen buffer to high-DPI display canvas with cyan glow
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(window.offscreenCanvas, 0, 0, canvas.width, canvas.height);
+
+      requestAnimationFrame(renderOLEDLoop);
+    }
+
+    // Normal Idle Clock & Cyber Pet Face
+    function renderOLEDNormalScreen(c, now, w, h) {
+      c.fillStyle = '#38bdf8';
+      c.font = '8px monospace';
+
+      // Header status line
+      c.fillText(oledState.isDocked ? 'DOCK' : 'PORT', 4, 9);
+      if (oledState.isCharging) {
+        c.fillText('⚡CHRG', 40, 9);
+      }
+      const timeStr = `${String(oledState.hours).padStart(2,'0')}:${String(oledState.minutes).padStart(2,'0')}`;
+      c.fillText(timeStr, 96, 9);
+      c.fillRect(0, 11, w, 1);
+
+      // Procedural Mochi eyes animation
+      const isPoked = (now - oledState.pokeTime < 1800);
+      const blinkCycle = (now % 4000);
+      const isBlinking = blinkCycle > 3800;
+
+      const eyeY = 36;
+      const eyeL_X = 44;
+      const eyeR_X = 84;
+
+      if (isPoked) {
+        // Happy arch eyes (^ ^)
+        drawHappyEye(c, eyeL_X, eyeY);
+        drawHappyEye(c, eyeR_X, eyeY);
+        // Blushing dots
+        c.fillRect(32, eyeY + 8, 4, 2);
+        c.fillRect(92, eyeY + 8, 4, 2);
+        // Mouth
+        c.fillRect(62, eyeY + 7, 4, 2);
+      } else if (isBlinking) {
+        // Flat closed eyes (-)
+        c.fillRect(eyeL_X - 10, eyeY + 2, 20, 2);
+        c.fillRect(eyeR_X - 10, eyeY + 2, 20, 2);
+      } else {
+        // Round expressive cyber eyes
+        drawRoundEye(c, eyeL_X, eyeY, 8);
+        drawRoundEye(c, eyeR_X, eyeY, 8);
+      }
+
+      // Bottom subtext
+      c.font = '7px monospace';
+      c.fillText('MOCHI V1 • ONLINE', 26, 61);
+    }
+
+    function drawRoundEye(c, cx, cy, r) {
+      c.beginPath();
+      c.arc(cx, cy, r, 0, Math.PI * 2);
+      c.fill();
+      // Pupil highlight (black notch)
+      c.fillStyle = '#050a14';
+      c.beginPath();
+      c.arc(cx - 2, cy - 2, 2.5, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#38bdf8';
+    }
+
+    function drawHappyEye(c, cx, cy) {
+      c.lineWidth = 2.5;
+      c.strokeStyle = '#38bdf8';
+      c.beginPath();
+      c.arc(cx, cy + 4, 8, Math.PI, 0, false);
+      c.stroke();
+    }
+
+    // Notification Overlay
+    function renderOLEDNotifScreen(c, now, w, h) {
+      c.fillStyle = '#38bdf8';
+
+      // Outer border box
+      c.strokeRect(2, 2, w - 4, h - 4);
+      c.fillRect(2, 2, w - 4, 11);
+
+      // Sender Title (Inverted)
+      c.fillStyle = '#050a14';
+      c.font = 'bold 8px monospace';
+      c.fillText((oledState.notifSender || 'ALERT').toUpperCase(), 6, 10);
+
+      // Message Body
+      c.fillStyle = '#38bdf8';
+      c.font = '8px monospace';
+      const msg = oledState.notifMsg || '';
+      
+      // Basic 2-line word wrap
+      if (msg.length <= 18) {
+        c.fillText(msg, 6, 26);
+      } else {
+        c.fillText(msg.substring(0, 18), 6, 25);
+        c.fillText(msg.substring(18, 36), 6, 36);
+        if (msg.length > 36) {
+          c.fillText(msg.substring(36, 54), 6, 47);
+        }
+      }
+
+      // Progress bar at bottom
+      const remaining = oledState.notifEndTime - now;
+      const progress = Math.max(0, Math.min(1, remaining / (oledState.notifTotalDuration || 5000)));
+      c.fillRect(4, 56, Math.floor((w - 8) * progress), 3);
+    }
+
+    // Driving Speed HUD
+    function renderOLEDSpeedScreen(c, w, h) {
+      c.fillStyle = '#38bdf8';
+      c.font = '8px monospace';
+      c.fillText('DRIVING MODE', 4, 9);
+      c.fillText('GPS', 104, 9);
+      c.fillRect(0, 11, w, 1);
+
+      // Large speed digits
+      c.font = 'bold 28px monospace';
+      const spdStr = String(oledState.speedKmh);
+      c.fillText(spdStr, 22, 44);
+
+      c.font = '10px monospace';
+      c.fillText('KM/H', 84, 44);
+
+      // Speed gauge ticks at bottom
+      const pct = Math.min(1, oledState.speedKmh / 140);
+      c.fillRect(4, 54, Math.floor((w - 8) * pct), 5);
+      c.strokeRect(4, 54, w - 8, 5);
+    }
+  </script>
+
+</body>
+</html>

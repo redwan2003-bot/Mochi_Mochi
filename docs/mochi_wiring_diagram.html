@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mochi Bot V1 - Verified Physical Wiring Diagram</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow-x: hidden;
+      user-select: none;
+    }
+    .wire {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: stroke-width 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+      cursor: pointer;
+    }
+    .wire:hover {
+      stroke-width: 6px !important;
+      filter: drop-shadow(0 0 6px currentColor);
+      opacity: 1 !important;
+    }
+    .wire-shadow {
+      fill: none;
+      stroke: rgba(0,0,0,0.5);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .dimmed {
+      opacity: 0.15 !important;
+    }
+    .highlighted {
+      stroke-width: 5px !important;
+      filter: drop-shadow(0 0 8px currentColor);
+      opacity: 1 !important;
+    }
+    .pin-hover:hover circle {
+      fill: #38bdf8 !important;
+      stroke: #ffffff !important;
+      stroke-width: 2px;
+      cursor: crosshair;
+    }
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #f8fafc;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      max-width: 320px;
+    }
+  </style>
+</head>
+<body class="p-4 bg-slate-950 text-slate-100">
+
+  <!-- Header Controls Bar -->
+  <div class="max-w-[1500px] mx-auto mb-4 bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-3">
+        <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+          <span class="inline-block w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+          Mochi Bot V1 — Physical Wiring & Pin-to-Pin Reference
+        </h1>
+        <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+          MPU6050 + 2-Pin Dock
+        </span>
+      </div>
+      <p class="text-xs text-slate-400 mt-1">
+        Photorealistic module layout with 100% verified electrical connections. Hover over any wire or pin for live routing details.
+      </p>
+    </div>
+
+    <!-- Filter Buttons -->
+    <div class="flex flex-wrap items-center gap-2 text-xs">
+      <button onclick="filterWires('all')" class="filter-btn px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition" data-group="all">
+        All Connections
+      </button>
+      <button onclick="filterWires('power')" class="filter-btn px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition" data-group="power">
+        ⚡ Power (5V/3V3/GND)
+      </button>
+      <button onclick="filterWires('i2c')" class="filter-btn px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition" data-group="i2c">
+        🔄 I²C Bus (OLED + MPU6050)
+      </button>
+      <button onclick="filterWires('i2s')" class="filter-btn px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition" data-group="i2s">
+        🎵 I²S Audio (Mic + Amp)
+      </button>
+      <button onclick="filterWires('sensors')" class="filter-btn px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition" data-group="sensors">
+        🎯 Sensors & Dock Logic
+      </button>
+      <button onclick="resetZoom()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 font-medium transition">
+        Reset View
+      </button>
+    </div>
+  </div>
+
+  <!-- SVG Diagram Canvas -->
+  <div class="max-w-[1500px] mx-auto bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative">
+    <div id="tooltip" class="tooltip"></div>
+
+    <svg id="canvas" viewBox="0 0 1500 1020" class="w-full h-auto cursor-grab active:cursor-grabbing">
+      <defs>
+        <!-- Board Background Gradients -->
+        <linearGradient id="gradPcbBlack" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#1e293b"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+        <linearGradient id="gradPcbBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#1e3a8a"/>
+          <stop offset="100%" stop-color="#172554"/>
+        </linearGradient>
+        <linearGradient id="gradPcbPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#581c87"/>
+          <stop offset="100%" stop-color="#3b0764"/>
+        </linearGradient>
+        <linearGradient id="gradPcbRed" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#991b1b"/>
+          <stop offset="100%" stop-color="#7f1d1d"/>
+        </linearGradient>
+        <linearGradient id="gradMetalShield" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#94a3b8"/>
+          <stop offset="50%" stop-color="#cbd5e1"/>
+          <stop offset="100%" stop-color="#64748b"/>
+        </linearGradient>
+        <linearGradient id="gradLipo" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#cbd5e1"/>
+          <stop offset="50%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#94a3b8"/>
+        </linearGradient>
+
+        <!-- Drop Shadows -->
+        <filter id="shadowModule" x="-10%" y="-10%" width="125%" height="125%">
+          <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000000" flood-opacity="0.6"/>
+        </filter>
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="3" result="glow"/>
+          <feComposite in="SourceGraphic" in2="glow" operator="over"/>
+        </filter>
+      </defs>
+
+      <!-- Background Grid -->
+      <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.8"/>
+      </pattern>
+      <rect width="1500" height="1020" fill="url(#grid)" />
+
+      <!-- ===================================================================== -->
+      <!-- LAYER 1: WIRES (Underneath components)                                 -->
+      <!-- ===================================================================== -->
+      <g id="wireLayer">
+
+        <!-- -------------------- POWER WIRES -------------------- -->
+        <!-- 3.3V Rail (Coral Red #f43f5e) -->
+        <!-- S3 3V3 (850, 420) -> OLED VCC (280, 180) -->
+        <path class="wire-shadow" d="M 850 420 C 700 370, 400 240, 280 180" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="3.3V Power Line: S3 3V3 -> OLED VCC (Max draw ~18mA at 70% contrast)" d="M 850 420 C 700 370, 400 240, 280 180" stroke="#f43f5e" stroke-width="3"/>
+
+        <!-- S3 3V3 (850, 420) -> MPU6050 VCC (1180, 180) -->
+        <path class="wire-shadow" d="M 850 420 C 950 350, 1080 240, 1180 180" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="3.3V Power Line: S3 3V3 -> MPU6050 VCC (~0.5mA in gyro standby)" d="M 850 420 C 950 350, 1080 240, 1180 180" stroke="#f43f5e" stroke-width="3"/>
+
+        <!-- S3 3V3 (850, 420) -> TTP223 VCC (280, 390) -->
+        <path class="wire-shadow" d="M 850 420 C 650 430, 450 390, 280 390" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="3.3V Power Line: S3 3V3 -> TTP223 Touch VCC (Ultra-low quiescent ~3µA)" d="M 850 420 C 650 430, 450 390, 280 390" stroke="#f43f5e" stroke-width="3"/>
+
+        <!-- S3 3V3 (850, 420) -> INMP441 VDD (280, 680) -->
+        <path class="wire-shadow" d="M 850 420 C 680 500, 450 630, 280 680" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="3.3V Power Line: S3 3V3 -> INMP441 Mic VDD (~1.4mA active listening)" d="M 850 420 C 680 500, 450 630, 280 680" stroke="#f43f5e" stroke-width="3"/>
+
+        <!-- S3 3V3 (850, 420) -> MAX98357A SD_MODE (1180, 520) -->
+        <path class="wire-shadow" d="M 850 420 C 950 450, 1060 490, 1180 520" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="3.3V Logic Pullup: S3 3V3 -> MAX98357A SD_MODE (Configures Left Audio Channel)" d="M 850 420 C 950 450, 1060 490, 1180 520" stroke="#f43f5e" stroke-width="3"/>
+
+        <!-- Common Ground Rail (Black / Dark Slate #020617 with #64748b border) -->
+        <!-- S3 GND (850, 380) -> OLED GND (280, 210) -->
+        <path class="wire-shadow" d="M 850 380 C 680 340, 420 250, 280 210" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="System Ground: S3 GND -> OLED Display GND" d="M 850 380 C 680 340, 420 250, 280 210" stroke="#475569" stroke-width="3"/>
+
+        <!-- S3 GND (850, 380) -> MPU6050 GND (1180, 210) -->
+        <path class="wire-shadow" d="M 850 380 C 960 330, 1080 250, 1180 210" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="System Ground: S3 GND -> MPU6050 GND" d="M 850 380 C 960 330, 1080 250, 1180 210" stroke="#475569" stroke-width="3"/>
+
+        <!-- MPU6050 AD0 (1180, 330) -> GND (1180, 210) -->
+        <path class="wire-shadow" d="M 1180 330 C 1140 330, 1140 210, 1180 210" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="Address Select: MPU6050 AD0 tied to GND (Sets I²C 7-bit address to 0x68)" d="M 1180 330 C 1140 330, 1140 210, 1180 210" stroke="#475569" stroke-width="3"/>
+
+        <!-- S3 GND (850, 380) -> TTP223 GND (280, 420) -->
+        <path class="wire-shadow" d="M 850 380 C 660 410, 450 410, 280 420" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="System Ground: S3 GND -> TTP223 Touch GND" d="M 850 380 C 660 410, 450 410, 280 420" stroke="#475569" stroke-width="3"/>
+
+        <!-- S3 GND (850, 380) -> INMP441 GND (280, 710) -->
+        <path class="wire-shadow" d="M 850 380 C 640 480, 420 620, 280 710" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="System Ground: S3 GND -> INMP441 Mic GND" d="M 850 380 C 640 480, 420 620, 280 710" stroke="#475569" stroke-width="3"/>
+
+        <!-- INMP441 L/R (280, 620) -> GND (280, 710) -->
+        <path class="wire-shadow" d="M 280 620 C 310 620, 310 710, 280 710" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="Channel Select: INMP441 L/R tied to GND (Selects Left Audio Slot)" d="M 280 620 C 310 620, 310 710, 280 710" stroke="#475569" stroke-width="3"/>
+
+        <!-- S3 GND (850, 380) -> MAX98357A GND (1180, 550) -->
+        <path class="wire-shadow" d="M 850 380 C 970 410, 1070 490, 1180 550" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="System Ground: S3 GND -> MAX98357A Amp GND" d="M 850 380 C 970 410, 1070 490, 1180 550" stroke="#475569" stroke-width="3"/>
+
+        <!-- S3 5V Input (850, 340) -> TP4056 OUT+ (650, 840) -->
+        <path class="wire-shadow" d="M 850 340 C 920 340, 930 760, 650 840" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="5V / SYS Power Rail: TP4056 OUT+ -> S3 5V Header (Powers onboard regulator and MAX98357A)" d="M 850 340 C 920 340, 930 760, 650 840" stroke="#ef4444" stroke-width="3.5"/>
+
+        <!-- TP4056 OUT+ (650, 840) -> MAX98357A VIN (1180, 580) -->
+        <path class="wire-shadow" d="M 650 840 C 900 840, 1100 680, 1180 580" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="Amplifier Power: TP4056 OUT+ (5V / Battery rail) -> MAX98357A VIN" d="M 650 840 C 900 840, 1100 680, 1180 580" stroke="#ef4444" stroke-width="3.5"/>
+
+        <!-- TP4056 OUT- (650, 880) -> S3 GND (850, 380) -->
+        <path class="wire-shadow" d="M 650 880 C 880 880, 900 480, 850 380" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="System Common Ground: TP4056 OUT- -> S3 GND" d="M 650 880 C 880 880, 900 480, 850 380" stroke="#475569" stroke-width="3"/>
+
+        <!-- Battery Connections via SPDT Slide Switch -->
+        <!-- LiPo B+ (840, 840) -> SPDT Switch Common (775, 840) -->
+        <path class="wire-shadow" d="M 840 840 L 775 840" stroke-width="5"/>
+        <path class="wire wire-power" id="wireBatRaw" data-group="power" data-info="Raw Battery Positive: 1S LiPo (+) Red Lead -> SPDT Slide Switch Pin 2 (Common)" d="M 840 840 L 775 840" stroke="#dc2626" stroke-width="3.5"/>
+
+        <!-- SPDT Switch ON (680, 840) -> TP4056 BAT+ (580, 840) -->
+        <path class="wire-shadow" d="M 680 840 L 580 840" stroke-width="5"/>
+        <path class="wire wire-power" id="wireBatSwitched" data-group="power" data-info="Switched Battery Positive: SPDT Switch Pin 3 (ON) -> TP4056 BAT+ Charger Pad" d="M 680 840 L 580 840" stroke="#ef4444" stroke-width="3.5"/>
+
+        <!-- LiPo B- (840, 880) -> TP4056 BAT- (580, 880) -->
+        <path class="wire-shadow" d="M 840 880 L 580 880" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="Battery Negative: 1S LiPo (-) Black Lead -> TP4056 BAT- (Common Return)" d="M 840 880 L 580 880" stroke="#1e293b" stroke-width="3.5"/>
+
+        <!-- 2-Pin Dock Pogo to TP4056 Input -->
+        <!-- Pogo Pin 1 +5V (260, 840) -> TP4056 IN+ (440, 840) -->
+        <path class="wire-shadow" d="M 260 840 L 440 840" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="Dock +5V: Pogo Pin 1 (+5V DC) -> TP4056 IN+ Charger Input" d="M 260 840 L 440 840" stroke="#f97316" stroke-width="3.5"/>
+
+        <!-- Pogo Pin 2 GND (260, 880) -> TP4056 IN- (440, 880) -->
+        <path class="wire-shadow" d="M 260 880 L 440 880" stroke-width="5"/>
+        <path class="wire wire-power" data-group="power" data-info="Dock GND: Pogo Pin 2 (Return GND) -> TP4056 IN- (Common ground)" d="M 260 880 L 440 880" stroke="#334155" stroke-width="3.5"/>
+
+
+        <!-- -------------------- I2C BUS WIRES -------------------- -->
+        <!-- GPIO8 SDA (850, 660) -> OLED SDA (280, 270) -->
+        <path class="wire-shadow" d="M 850 660 C 650 660, 480 320, 280 270" stroke-width="5"/>
+        <path class="wire wire-i2c" data-group="i2c" data-info="I²C Data (SDA): S3 GPIO8 -> OLED SDA" d="M 850 660 C 650 660, 480 320, 280 270" stroke="#38bdf8" stroke-width="3"/>
+
+        <!-- GPIO8 SDA (850, 660) -> MPU6050 SDA (1180, 270) -->
+        <path class="wire-shadow" d="M 850 660 C 980 660, 1100 380, 1180 270" stroke-width="5"/>
+        <path class="wire wire-i2c" data-group="i2c" data-info="I²C Data (SDA): S3 GPIO8 -> MPU6050 SDA (Shared 400kHz I²C bus)" d="M 850 660 C 980 660, 1100 380, 1180 270" stroke="#38bdf8" stroke-width="3"/>
+
+        <!-- GPIO9 SCL (850, 620) -> OLED SCL (280, 240) -->
+        <path class="wire-shadow" d="M 850 620 C 620 620, 460 290, 280 240" stroke-width="5"/>
+        <path class="wire wire-i2c" data-group="i2c" data-info="I²C Clock (SCL): S3 GPIO9 -> OLED SCL" d="M 850 620 C 620 620, 460 290, 280 240" stroke="#22c55e" stroke-width="3"/>
+
+        <!-- GPIO9 SCL (850, 620) -> MPU6050 SCL (1180, 240) -->
+        <path class="wire-shadow" d="M 850 620 C 990 620, 1110 340, 1180 240" stroke-width="5"/>
+        <path class="wire wire-i2c" data-group="i2c" data-info="I²C Clock (SCL): S3 GPIO9 -> MPU6050 SCL (Shared 400kHz I²C clock)" d="M 850 620 C 990 620, 1110 340, 1180 240" stroke="#22c55e" stroke-width="3"/>
+
+
+        <!-- -------------------- I2S AUDIO WIRES -------------------- -->
+        <!-- GPIO1 WS/LRC (640, 420) -> INMP441 WS (280, 590) -->
+        <path class="wire-shadow" d="M 640 420 C 500 420, 420 540, 280 590" stroke-width="5"/>
+        <path class="wire wire-i2s" data-group="i2s" data-info="I²S Word Select (WS): S3 GPIO1 -> INMP441 WS (16 kHz shared frame clock)" d="M 640 420 C 500 420, 420 540, 280 590" stroke="#c084fc" stroke-width="3"/>
+
+        <!-- GPIO1 WS/LRC (640, 420) -> MAX98357A LRC (1180, 400) -->
+        <path class="wire-shadow" d="M 640 420 C 600 300, 1000 300, 1180 400" stroke-width="5"/>
+        <path class="wire wire-i2s" data-group="i2s" data-info="I²S Word Select (LRC): S3 GPIO1 -> MAX98357A LRC (Shared clock, half-duplex)" d="M 640 420 C 600 300, 1000 300, 1180 400" stroke="#c084fc" stroke-width="3"/>
+
+        <!-- GPIO2 BCLK (640, 450) -> INMP441 SCK (280, 560) -->
+        <path class="wire-shadow" d="M 640 450 C 490 450, 410 520, 280 560" stroke-width="5"/>
+        <path class="wire wire-i2s" data-group="i2s" data-info="I²S Bit Clock (BCLK): S3 GPIO2 -> INMP441 SCK (Shared bit clock)" d="M 640 450 C 490 450, 410 520, 280 560" stroke="#a855f7" stroke-width="3"/>
+
+        <!-- GPIO2 BCLK (640, 450) -> MAX98357A BCLK (1180, 430) -->
+        <path class="wire-shadow" d="M 640 450 C 700 320, 1020 340, 1180 430" stroke-width="5"/>
+        <path class="wire wire-i2s" data-group="i2s" data-info="I²S Bit Clock (BCLK): S3 GPIO2 -> MAX98357A BCLK (Shared bit clock, half-duplex)" d="M 640 450 C 700 320, 1020 340, 1180 430" stroke="#a855f7" stroke-width="3"/>
+
+        <!-- INMP441 SD (280, 650) -> S3 GPIO10 DIN (850, 580) -->
+        <path class="wire-shadow" d="M 280 650 C 420 650, 680 580, 850 580" stroke-width="5"/>
+        <path class="wire wire-i2s" data-group="i2s" data-info="I²S Audio RX (Data In): INMP441 SD -> S3 GPIO10 (Clap detection energy buffer)" d="M 280 650 C 420 650, 680 580, 850 580" stroke="#facc15" stroke-width="3"/>
+
+        <!-- S3 GPIO11 DOUT (850, 540) -> MAX98357A DIN (1180, 460) -->
+        <path class="wire-shadow" d="M 850 540 C 970 540, 1060 490, 1180 460" stroke-width="5"/>
+        <path class="wire wire-i2s" data-group="i2s" data-info="I²S Audio TX (Data Out): S3 GPIO11 -> MAX98357A DIN (Dual-tone chirp synthesis)" d="M 850 540 C 970 540, 1060 490, 1180 460" stroke="#facc15" stroke-width="3"/>
+
+        <!-- MAX98357A OUT+ (1350, 440) -> Speaker (+) (1420, 460) -->
+        <path class="wire-shadow" d="M 1350 440 L 1420 460" stroke-width="5"/>
+        <path class="wire wire-i2s" data-group="i2s" data-info="Speaker Audio Bridge OUT+: MAX98357A OUT+ -> 8Ω Speaker (+ terminal)" d="M 1350 440 L 1420 460" stroke="#f97316" stroke-width="3"/>
+
+        <!-- MAX98357A OUT- (1350, 480) -> Speaker (-) (1420, 500) -->
+        <path class="wire-shadow" d="M 1350 480 L 1420 500" stroke-width="5"/>
+        <path class="wire wire-i2s" data-group="i2s" data-info="Speaker Audio Bridge OUT-: MAX98357A OUT- -> 8Ω Speaker (- terminal, BTL output)" d="M 1350 480 L 1420 500" stroke="#94a3b8" stroke-width="3"/>
+
+
+        <!-- -------------------- SENSORS & DOCK LOGIC -------------------- -->
+        <!-- MPU6050 INT (1180, 360) -> S3 GPIO4 WAKE (640, 510) -->
+        <path class="wire-shadow" d="M 1180 360 C 1080 360, 800 510, 640 510" stroke-width="5"/>
+        <path class="wire wire-sensors" data-group="sensors" data-info="Motion Wake Interrupt: MPU6050 INT -> S3 GPIO4 (Latched active-HIGH wake on motion)" d="M 1180 360 C 1080 360, 800 510, 640 510" stroke="#fb923c" stroke-width="3"/>
+
+        <!-- TTP223 I/O (280, 450) -> S3 GPIO6 TOUCH (640, 570) -->
+        <path class="wire-shadow" d="M 280 450 C 440 450, 500 570, 640 570" stroke-width="5"/>
+        <path class="wire wire-sensors" data-group="sensors" data-info="Expression Touch Input: TTP223 I/O -> S3 GPIO6 (Active-HIGH momentary touch controller)" d="M 280 450 C 440 450, 500 570, 640 570" stroke="#06b6d4" stroke-width="3"/>
+
+        <!-- Voltage Divider on +5V Dock line for GPIO5 Dock Sense -->
+        <!-- Tap from 5V Pogo line (320, 840) to Top of 10k resistor (320, 750) -->
+        <path class="wire-shadow" d="M 320 840 L 320 750" stroke-width="5"/>
+        <path class="wire wire-sensors" data-group="sensors" data-info="Dock Voltage Divider Tap: +5V Dock Line -> Top of 10kΩ Resistor" d="M 320 840 L 320 750" stroke="#f97316" stroke-width="2.5"/>
+
+        <!-- 10k/20k junction (370, 750) to S3 GPIO5 (640, 540) -->
+        <path class="wire-shadow" d="M 370 750 C 480 750, 520 540, 640 540" stroke-width="5"/>
+        <path class="wire wire-sensors" data-group="sensors" data-info="Dock Sense Signal: 10k/20k Divider Center (3.3V when docked) -> S3 GPIO5" d="M 370 750 C 480 750, 520 540, 640 540" stroke="#ec4899" stroke-width="3"/>
+
+        <!-- Bottom of 20k resistor (420, 750) to Ground (420, 880) -->
+        <path class="wire-shadow" d="M 420 750 L 420 880" stroke-width="5"/>
+        <path class="wire wire-sensors" data-group="sensors" data-info="Divider Ground Return: Bottom of 20kΩ Resistor -> Common Ground" d="M 420 750 L 420 880" stroke="#475569" stroke-width="2.5"/>
+
+        <!-- TP4056 CHRG Pin 7 (470, 810) -> 1N4148 Cathode (470, 710) -->
+        <path class="wire-shadow" d="M 470 810 L 470 710" stroke-width="5"/>
+        <path class="wire wire-sensors" data-group="sensors" data-info="Charge LED Sense: TP4056 Pin 7 (Red CHRG LED Cathode) -> 1N4148 Diode Cathode (Band)" d="M 470 810 L 470 710" stroke="#a855f7" stroke-width="2.5"/>
+
+        <!-- 1N4148 Anode (530, 710) -> S3 GPIO7 (640, 600) -->
+        <path class="wire-shadow" d="M 530 710 C 580 710, 590 600, 640 600" stroke-width="5"/>
+        <path class="wire wire-sensors" data-group="sensors" data-info="Charge Status Signal: 1N4148 Anode -> S3 GPIO7 (Active-LOW when charging, internal pullup)" d="M 530 710 C 580 710, 590 600, 640 600" stroke="#a855f7" stroke-width="3"/>
+
+      </g>
+
+
+      <!-- ===================================================================== -->
+      <!-- LAYER 2: HARDWARE MODULES (Realistic Appearance)                      -->
+      <!-- ===================================================================== -->
+
+      <!-- 1. ESP32-S3 SuperMini (Center) -->
+      <g id="modS3" transform="translate(630, 260)" filter="url(#shadowModule)">
+        <!-- Black PCB -->
+        <rect x="0" y="0" width="230" height="380" rx="12" fill="url(#gradPcbBlack)" stroke="#334155" stroke-width="2"/>
+        <text x="115" y="30" fill="#94a3b8" font-size="11" font-weight="bold" text-anchor="middle" letter-spacing="1">ESP32-S3 SUPERMINI</text>
+
+        <!-- USB-C Connector (Top) -->
+        <rect x="75" y="-12" width="80" height="28" rx="6" fill="url(#gradMetalShield)" stroke="#475569" stroke-width="1.5"/>
+        <rect x="90" y="-8" width="50" height="10" rx="3" fill="#1e293b"/>
+        <text x="115" y="8" fill="#64748b" font-size="8" text-anchor="middle">USB-C (CDC)</text>
+
+        <!-- ESP32-S3 RF Metal Shield -->
+        <rect x="40" y="60" width="150" height="130" rx="6" fill="url(#gradMetalShield)" stroke="#64748b" stroke-width="1.5"/>
+        <!-- Espressif logo placeholder & chip text -->
+        <rect x="55" y="75" width="120" height="100" rx="4" fill="#334155" opacity="0.15"/>
+        <text x="115" y="105" fill="#1e293b" font-size="13" font-weight="900" text-anchor="middle">ESPRESSIF</text>
+        <text x="115" y="125" fill="#334155" font-size="11" font-weight="bold" text-anchor="middle">ESP32-S3</text>
+        <text x="115" y="145" fill="#475569" font-size="9" text-anchor="middle">Xtensa Dual-Core 240MHz</text>
+        <text x="115" y="160" fill="#475569" font-size="8" text-anchor="middle">4MB Flash • Native USB</text>
+
+        <!-- Onboard LEDs and Buttons -->
+        <!-- BOOT Button -->
+        <rect x="35" y="210" width="24" height="24" rx="4" fill="#64748b" stroke="#334155"/>
+        <circle cx="47" cy="222" r="6" fill="#1e293b"/>
+        <text x="47" y="245" fill="#64748b" font-size="7" text-anchor="middle">BOOT</text>
+
+        <!-- RESET Button -->
+        <rect x="170" y="210" width="24" height="24" rx="4" fill="#64748b" stroke="#334155"/>
+        <circle cx="182" cy="222" r="6" fill="#1e293b"/>
+        <text x="182" y="245" fill="#64748b" font-size="7" text-anchor="middle">RST</text>
+
+        <!-- Power LED (Red) -->
+        <circle cx="115" cy="222" r="3" fill="#ef4444" filter="url(#glow)"/>
+        <text x="115" y="235" fill="#ef4444" font-size="7" text-anchor="middle">PWR</text>
+
+        <!-- Ceramic Antenna (Bottom) -->
+        <rect x="65" y="340" width="100" height="28" rx="4" fill="#334155" stroke="#475569"/>
+        <path d="M 85 348 L 145 348 M 85 354 L 145 354 M 85 360 L 145 360" stroke="#e2e8f0" stroke-width="1.5"/>
+
+        <!-- LEFT SIDE PINS (9 pins) -->
+        <!-- Pin 1: TX (GPIO43) -->
+        <g class="pin-hover"><circle cx="10" cy="70" r="7" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/><text x="24" y="74" fill="#94a3b8" font-size="10" font-family="monospace">TX (43)</text></g>
+        <!-- Pin 2: RX (GPIO44) -->
+        <g class="pin-hover"><circle cx="10" cy="100" r="7" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/><text x="24" y="104" fill="#94a3b8" font-size="10" font-family="monospace">RX (44)</text></g>
+        <!-- Pin 3: GPIO1 (I2S WS) -->
+        <g class="pin-hover"><circle cx="10" cy="160" r="7" fill="#c084fc" stroke="#7e22ce" stroke-width="2"/><text x="24" y="164" fill="#c084fc" font-size="10" font-weight="bold" font-family="monospace">IO1 (WS)</text></g>
+        <!-- Pin 4: GPIO2 (I2S BCLK) -->
+        <g class="pin-hover"><circle cx="10" cy="190" r="7" fill="#a855f7" stroke="#6b21a8" stroke-width="2"/><text x="24" y="194" fill="#a855f7" font-size="10" font-weight="bold" font-family="monospace">IO2 (BCLK)</text></g>
+        <!-- Pin 5: GPIO3 -->
+        <g class="pin-hover"><circle cx="10" cy="220" r="7" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/><text x="24" y="224" fill="#94a3b8" font-size="10" font-family="monospace">IO3</text></g>
+        <!-- Pin 6: GPIO4 (WAKE/INT) -->
+        <g class="pin-hover"><circle cx="10" cy="250" r="7" fill="#fb923c" stroke="#c2410c" stroke-width="2"/><text x="24" y="254" fill="#fb923c" font-size="10" font-weight="bold" font-family="monospace">IO4 (INT)</text></g>
+        <!-- Pin 7: GPIO5 (DOCK) -->
+        <g class="pin-hover"><circle cx="10" cy="280" r="7" fill="#ec4899" stroke="#be185d" stroke-width="2"/><text x="24" y="284" fill="#ec4899" font-size="10" font-weight="bold" font-family="monospace">IO5 (DOCK)</text></g>
+        <!-- Pin 8: GPIO6 (TOUCH) -->
+        <g class="pin-hover"><circle cx="10" cy="310" r="7" fill="#06b6d4" stroke="#0e7490" stroke-width="2"/><text x="24" y="314" fill="#06b6d4" font-size="10" font-weight="bold" font-family="monospace">IO6 (TCH)</text></g>
+        <!-- Pin 9: GPIO7 (CHRG) -->
+        <g class="pin-hover"><circle cx="10" cy="340" r="7" fill="#a855f7" stroke="#6b21a8" stroke-width="2"/><text x="24" y="344" fill="#a855f7" font-size="10" font-weight="bold" font-family="monospace">IO7 (CHRG)</text></g>
+
+        <!-- RIGHT SIDE PINS (9 pins) -->
+        <!-- Pin 1: 5V -->
+        <g class="pin-hover"><circle cx="220" cy="80" r="7" fill="#ef4444" stroke="#991b1b" stroke-width="2"/><text x="180" y="84" fill="#ef4444" font-size="10" font-weight="bold" font-family="monospace">5V (SYS)</text></g>
+        <!-- Pin 2: GND -->
+        <g class="pin-hover"><circle cx="220" cy="120" r="7" fill="#475569" stroke="#0f172a" stroke-width="2"/><text x="190" y="124" fill="#94a3b8" font-size="10" font-weight="bold" font-family="monospace">GND</text></g>
+        <!-- Pin 3: 3V3 -->
+        <g class="pin-hover"><circle cx="220" cy="160" r="7" fill="#f43f5e" stroke="#be123c" stroke-width="2"/><text x="190" y="164" fill="#f43f5e" font-size="10" font-weight="bold" font-family="monospace">3V3</text></g>
+        <!-- Pin 4: GPIO13 -->
+        <g class="pin-hover"><circle cx="220" cy="200" r="7" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/><text x="185" y="204" fill="#94a3b8" font-size="10" font-family="monospace">IO13</text></g>
+        <!-- Pin 5: GPIO12 -->
+        <g class="pin-hover"><circle cx="220" cy="240" r="7" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/><text x="185" y="244" fill="#94a3b8" font-size="10" font-family="monospace">IO12</text></g>
+        <!-- Pin 6: GPIO11 (I2S DOUT) -->
+        <g class="pin-hover"><circle cx="220" cy="280" r="7" fill="#facc15" stroke="#a16207" stroke-width="2"/><text x="155" y="284" fill="#facc15" font-size="10" font-weight="bold" font-family="monospace">IO11 (TX)</text></g>
+        <!-- Pin 7: GPIO10 (I2S DIN) -->
+        <g class="pin-hover"><circle cx="220" cy="320" r="7" fill="#facc15" stroke="#a16207" stroke-width="2"/><text x="155" y="324" fill="#facc15" font-size="10" font-weight="bold" font-family="monospace">IO10 (RX)</text></g>
+        <!-- Pin 8: GPIO9 (I2C SCL) -->
+        <g class="pin-hover"><circle cx="220" cy="360" r="7" fill="#22c55e" stroke="#15803d" stroke-width="2"/><text x="155" y="364" fill="#22c55e" font-size="10" font-weight="bold" font-family="monospace">IO9 (SCL)</text></g>
+        <!-- Pin 9: GPIO8 (I2C SDA) -->
+        <g class="pin-hover"><circle cx="220" cy="400" r="7" fill="#38bdf8" stroke="#0284c7" stroke-width="2"/><text x="155" y="404" fill="#38bdf8" font-size="10" font-weight="bold" font-family="monospace">IO8 (SDA)</text></g>
+      </g>
+
+
+      <!-- 2. 1.3" I2C Monochrome OLED (Top-Left) -->
+      <g id="modOled" transform="translate(60, 100)" filter="url(#shadowModule)">
+        <rect x="0" y="0" width="240" height="190" rx="8" fill="url(#gradPcbBlue)" stroke="#1e40af" stroke-width="2"/>
+        <text x="120" y="24" fill="#93c5fd" font-size="11" font-weight="bold" text-anchor="middle">1.3" SH1106 I2C OLED (128x64)</text>
+
+        <!-- Glass Display Bezel -->
+        <rect x="20" y="35" width="200" height="110" rx="4" fill="#020617" stroke="#334155" stroke-width="2"/>
+        <!-- OLED Active Area showing sleepy face -->
+        <rect x="30" y="45" width="180" height="90" fill="#000000"/>
+        <!-- Vector sleepy face illustration on display -->
+        <path d="M 60 90 Q 75 75 90 90" stroke="#38bdf8" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M 150 90 Q 165 75 180 90" stroke="#38bdf8" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <ellipse cx="120" cy="105" rx="5" ry="3" fill="#38bdf8"/>
+        <text x="120" y="70" fill="#38bdf8" font-size="10" font-family="monospace" text-anchor="middle">12:45</text>
+        <text x="45" y="60" fill="#38bdf8" font-size="8" font-family="monospace">[DOCK]</text>
+
+        <!-- 4 Pin Header on Right side of OLED -->
+        <!-- VCC -->
+        <g class="pin-hover"><circle cx="220" cy="80" r="6" fill="#f43f5e" stroke="#991b1b" stroke-width="1.5"/><text x="195" y="84" fill="#f43f5e" font-size="9" font-weight="bold">VCC</text></g>
+        <!-- GND -->
+        <g class="pin-hover"><circle cx="220" cy="110" r="6" fill="#475569" stroke="#0f172a" stroke-width="1.5"/><text x="195" y="114" fill="#94a3b8" font-size="9" font-weight="bold">GND</text></g>
+        <!-- SCL -->
+        <g class="pin-hover"><circle cx="220" cy="140" r="6" fill="#22c55e" stroke="#15803d" stroke-width="1.5"/><text x="195" y="144" fill="#22c55e" font-size="9" font-weight="bold">SCL</text></g>
+        <!-- SDA -->
+        <g class="pin-hover"><circle cx="220" cy="170" r="6" fill="#38bdf8" stroke="#0284c7" stroke-width="1.5"/><text x="195" y="174" fill="#38bdf8" font-size="9" font-weight="bold">SDA</text></g>
+      </g>
+
+
+      <!-- 3. MPU6050 (GY-521 Module) (Top-Right) -->
+      <g id="modMpu" transform="translate(1160, 100)" filter="url(#shadowModule)">
+        <rect x="0" y="0" width="220" height="280" rx="8" fill="url(#gradPcbBlue)" stroke="#1e40af" stroke-width="2"/>
+        <text x="110" y="24" fill="#93c5fd" font-size="11" font-weight="bold" text-anchor="middle">MPU-6050 (GY-521)</text>
+
+        <!-- MPU6050 IC chip -->
+        <rect x="80" y="80" width="60" height="60" rx="4" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+        <circle cx="90" cy="90" r="2.5" fill="#64748b"/>
+        <text x="110" y="110" fill="#94a3b8" font-size="8" font-weight="bold" text-anchor="middle">MPU-6050</text>
+        <text x="110" y="125" fill="#64748b" font-size="7" text-anchor="middle">6-AXIS IMU</text>
+
+        <!-- Power LED & LDO -->
+        <rect x="150" y="80" width="20" height="15" fill="#334155"/>
+        <circle cx="160" cy="120" r="2.5" fill="#22c55e" filter="url(#glow)"/>
+
+        <!-- 8 Pin Header on Left side of GY-521 -->
+        <!-- Pin 1: VCC -->
+        <g class="pin-hover"><circle cx="20" cy="80" r="6" fill="#f43f5e" stroke="#991b1b" stroke-width="1.5"/><text x="32" y="84" fill="#f43f5e" font-size="9" font-weight="bold">VCC (3.3V)</text></g>
+        <!-- Pin 2: GND -->
+        <g class="pin-hover"><circle cx="20" cy="110" r="6" fill="#475569" stroke="#0f172a" stroke-width="1.5"/><text x="32" y="114" fill="#94a3b8" font-size="9" font-weight="bold">GND</text></g>
+        <!-- Pin 3: SCL -->
+        <g class="pin-hover"><circle cx="20" cy="140" r="6" fill="#22c55e" stroke="#15803d" stroke-width="1.5"/><text x="32" y="144" fill="#22c55e" font-size="9" font-weight="bold">SCL</text></g>
+        <!-- Pin 4: SDA -->
+        <g class="pin-hover"><circle cx="20" cy="170" r="6" fill="#38bdf8" stroke="#0284c7" stroke-width="1.5"/><text x="32" y="174" fill="#38bdf8" font-size="9" font-weight="bold">SDA</text></g>
+        <!-- Pin 5: XDA (Unused) -->
+        <g class="pin-hover"><circle cx="20" cy="200" r="6" fill="#334155" stroke="#1e293b" stroke-width="1"/><text x="32" y="204" fill="#64748b" font-size="9">XDA (NC)</text></g>
+        <!-- Pin 6: XCL (Unused) -->
+        <g class="pin-hover"><circle cx="20" cy="230" r="6" fill="#334155" stroke="#1e293b" stroke-width="1"/><text x="32" y="234" fill="#64748b" font-size="9">XCL (NC)</text></g>
+        <!-- Pin 7: AD0 (GND) -->
+        <g class="pin-hover"><circle cx="20" cy="250" r="6" fill="#475569" stroke="#0f172a" stroke-width="1.5"/><text x="32" y="254" fill="#94a3b8" font-size="9" font-weight="bold">AD0 -> GND (0x68)</text></g>
+        <!-- Pin 8: INT (Motion wake) -->
+        <g class="pin-hover"><circle cx="20" cy="270" r="6" fill="#fb923c" stroke="#c2410c" stroke-width="2"/><text x="32" y="274" fill="#fb923c" font-size="9" font-weight="bold">INT (Wake -> IO4)</text></g>
+      </g>
+
+
+      <!-- 4. TTP223 Capacitive Touch Switch (Middle-Left) -->
+      <g id="modTouch" transform="translate(140, 360)" filter="url(#shadowModule)">
+        <rect x="0" y="0" width="160" height="120" rx="8" fill="url(#gradPcbRed)" stroke="#b91c1c" stroke-width="1.5"/>
+        <text x="80" y="20" fill="#fca5a5" font-size="10" font-weight="bold" text-anchor="middle">TTP223 TOUCH SENSOR</text>
+
+        <!-- Copper Touch Area -->
+        <circle cx="50" cy="65" r="30" fill="#b45309" stroke="#d97706" stroke-width="2"/>
+        <circle cx="50" cy="65" r="22" fill="#78350f"/>
+        <text x="50" y="70" fill="#fef3c7" font-size="9" font-weight="bold" text-anchor="middle">TOUCH</text>
+
+        <!-- Chip -->
+        <rect x="95" y="45" width="16" height="12" fill="#0f172a"/>
+
+        <!-- 3 Pin Header on Right -->
+        <!-- VCC -->
+        <g class="pin-hover"><circle cx="140" cy="30" r="6" fill="#f43f5e" stroke="#991b1b" stroke-width="1.5"/><text x="105" y="34" fill="#f43f5e" font-size="9" font-weight="bold">VCC</text></g>
+        <!-- GND -->
+        <g class="pin-hover"><circle cx="140" cy="60" r="6" fill="#475569" stroke="#0f172a" stroke-width="1.5"/><text x="105" y="64" fill="#94a3b8" font-size="9" font-weight="bold">GND</text></g>
+        <!-- I/O -->
+        <g class="pin-hover"><circle cx="140" cy="90" r="6" fill="#06b6d4" stroke="#0e7490" stroke-width="2"/><text x="95" y="94" fill="#06b6d4" font-size="9" font-weight="bold">I/O (SIG)</text></g>
+      </g>
+
+
+      <!-- 5. INMP441 MEMS Microphone (Bottom-Left) -->
+      <g id="modMic" transform="translate(130, 520)" filter="url(#shadowModule)">
+        <rect x="0" y="0" width="170" height="210" rx="10" fill="url(#gradPcbBlack)" stroke="#334155" stroke-width="2"/>
+        <text x="85" y="22" fill="#94a3b8" font-size="10" font-weight="bold" text-anchor="middle">INMP441 MEMS MIC</text>
+
+        <!-- Mic Acoustic Port -->
+        <circle cx="85" cy="65" r="24" fill="#020617" stroke="#fbbf24" stroke-width="2"/>
+        <circle cx="85" cy="65" r="5" fill="#000000"/>
+        <text x="85" y="105" fill="#64748b" font-size="8" text-anchor="middle">Acoustic Port</text>
+
+        <!-- 6 Pin Header on Right -->
+        <!-- SCK -->
+        <g class="pin-hover"><circle cx="150" cy="40" r="6" fill="#a855f7" stroke="#6b21a8" stroke-width="1.5"/><text x="115" y="44" fill="#a855f7" font-size="9" font-weight="bold">SCK</text></g>
+        <!-- WS -->
+        <g class="pin-hover"><circle cx="150" cy="70" r="6" fill="#c084fc" stroke="#7e22ce" stroke-width="1.5"/><text x="120" y="74" fill="#c084fc" font-size="9" font-weight="bold">WS</text></g>
+        <!-- L/R -->
+        <g class="pin-hover"><circle cx="150" cy="100" r="6" fill="#475569" stroke="#0f172a" stroke-width="1.5"/><text x="120" y="104" fill="#94a3b8" font-size="9">L/R</text></g>
+        <!-- SD -->
+        <g class="pin-hover"><circle cx="150" cy="130" r="6" fill="#facc15" stroke="#a16207" stroke-width="2"/><text x="120" y="134" fill="#facc15" font-size="9" font-weight="bold">SD</text></g>
+        <!-- VDD -->
+        <g class="pin-hover"><circle cx="150" cy="160" r="6" fill="#f43f5e" stroke="#991b1b" stroke-width="1.5"/><text x="115" y="164" fill="#f43f5e" font-size="9" font-weight="bold">VDD</text></g>
+        <!-- GND -->
+        <g class="pin-hover"><circle cx="150" cy="190" r="6" fill="#475569" stroke="#0f172a" stroke-width="1.5"/><text x="115" y="194" fill="#94a3b8" font-size="9" font-weight="bold">GND</text></g>
+      </g>
+
+
+      <!-- 6. MAX98357A I2S Amplifier & Speaker (Middle-Right) -->
+      <g id="modAmp" transform="translate(1160, 360)" filter="url(#shadowModule)">
+        <rect x="0" y="0" width="210" height="240" rx="8" fill="url(#gradPcbPurple)" stroke="#6b21a8" stroke-width="2"/>
+        <text x="105" y="24" fill="#d8b4fe" font-size="11" font-weight="bold" text-anchor="middle">MAX98357A CLASS-D AMP</text>
+
+        <!-- Amp Chip -->
+        <rect x="85" y="70" width="40" height="40" rx="4" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+        <text x="105" y="94" fill="#c084fc" font-size="7" font-weight="bold" text-anchor="middle">MAX98357</text>
+
+        <!-- 7 Pin Header on Left -->
+        <!-- LRC -->
+        <g class="pin-hover"><circle cx="20" cy="40" r="6" fill="#c084fc" stroke="#7e22ce" stroke-width="1.5"/><text x="32" y="44" fill="#c084fc" font-size="9" font-weight="bold">LRC (WS)</text></g>
+        <!-- BCLK -->
+        <g class="pin-hover"><circle cx="20" cy="70" r="6" fill="#a855f7" stroke="#6b21a8" stroke-width="1.5"/><text x="32" y="74" fill="#a855f7" font-size="9" font-weight="bold">BCLK</text></g>
+        <!-- DIN -->
+        <g class="pin-hover"><circle cx="20" cy="100" r="6" fill="#facc15" stroke="#a16207" stroke-width="2"/><text x="32" y="104" fill="#facc15" font-size="9" font-weight="bold">DIN (TX)</text></g>
+        <!-- GAIN -->
+        <g class="pin-hover"><circle cx="20" cy="130" r="6" fill="#334155" stroke="#1e293b" stroke-width="1"/><text x="32" y="134" fill="#64748b" font-size="9">GAIN (NC)</text></g>
+        <!-- SD -->
+        <g class="pin-hover"><circle cx="20" cy="160" r="6" fill="#f43f5e" stroke="#991b1b" stroke-width="1.5"/><text x="32" y="164" fill="#f43f5e" font-size="9" font-weight="bold">SD_MODE</text></g>
+        <!-- GND -->
+        <g class="pin-hover"><circle cx="20" cy="190" r="6" fill="#475569" stroke="#0f172a" stroke-width="1.5"/><text x="32" y="194" fill="#94a3b8" font-size="9" font-weight="bold">GND</text></g>
+        <!-- VIN -->
+        <g class="pin-hover"><circle cx="20" cy="220" r="6" fill="#ef4444" stroke="#991b1b" stroke-width="2"/><text x="32" y="224" fill="#ef4444" font-size="9" font-weight="bold">VIN (5V/SYS)</text></g>
+
+        <!-- Speaker Terminal Blocks on Right -->
+        <rect x="170" y="70" width="30" height="50" rx="3" fill="#1e293b" stroke="#334155"/>
+        <g class="pin-hover"><circle cx="185" cy="80" r="5" fill="#f97316"/><text x="145" y="84" fill="#f97316" font-size="8" font-weight="bold">OUT+</text></g>
+        <g class="pin-hover"><circle cx="185" cy="110" r="5" fill="#94a3b8"/><text x="145" y="114" fill="#94a3b8" font-size="8" font-weight="bold">OUT-</text></g>
+      </g>
+
+      <!-- Speaker Graphic -->
+      <g id="modSpeaker" transform="translate(1410, 430)">
+        <circle cx="45" cy="45" r="45" fill="#1e293b" stroke="#475569" stroke-width="3"/>
+        <circle cx="45" cy="45" r="32" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+        <circle cx="45" cy="45" r="14" fill="#334155"/>
+        <text x="45" y="105" fill="#94a3b8" font-size="9" font-weight="bold" text-anchor="middle">8Ω 1W-2W</text>
+        <circle cx="10" cy="30" r="4" fill="#f97316"/>
+        <circle cx="10" cy="60" r="4" fill="#94a3b8"/>
+      </g>
+
+
+      <!-- 7. TP4056 Linear Charger Board (Bottom-Center) -->
+      <g id="modCharger" transform="translate(420, 780)" filter="url(#shadowModule)">
+        <rect x="0" y="0" width="250" height="150" rx="8" fill="url(#gradPcbBlue)" stroke="#1e40af" stroke-width="2"/>
+        <text x="125" y="22" fill="#93c5fd" font-size="11" font-weight="bold" text-anchor="middle">TP4056 LINEAR CHARGER</text>
+
+        <!-- TP4056 IC -->
+        <rect x="90" y="45" width="45" height="35" rx="3" fill="#0f172a" stroke="#334155"/>
+        <text x="112" y="67" fill="#94a3b8" font-size="8" font-weight="bold" text-anchor="middle">TP4056</text>
+
+        <!-- Dual LEDs -->
+        <!-- Red CHRG LED -->
+        <circle cx="65" cy="45" r="4" fill="#ef4444" filter="url(#glow)"/>
+        <text x="65" y="36" fill="#ef4444" font-size="7" font-weight="bold" text-anchor="middle">CHRG (Red)</text>
+        <!-- Blue STBY LED -->
+        <circle cx="65" cy="65" r="4" fill="#3b82f6"/>
+        <text x="65" y="80" fill="#60a5fa" font-size="7" font-weight="bold" text-anchor="middle">STBY (Blue)</text>
+
+        <!-- Left Input Pads: IN+, IN- -->
+        <g class="pin-hover"><rect x="10" y="50" width="16" height="16" rx="2" fill="#f97316"/><text x="32" y="62" fill="#f97316" font-size="9" font-weight="bold">IN+ (5V Pogo)</text></g>
+        <g class="pin-hover"><rect x="10" y="90" width="16" height="16" rx="2" fill="#475569"/><text x="32" y="102" fill="#94a3b8" font-size="9" font-weight="bold">IN- (GND)</text></g>
+
+        <!-- Right Battery Pads: BAT+, BAT- -->
+        <g class="pin-hover"><rect x="150" y="50" width="16" height="16" rx="2" fill="#dc2626"/><text x="130" y="62" fill="#dc2626" font-size="9" font-weight="bold" text-anchor="end">BAT+</text></g>
+        <g class="pin-hover"><rect x="150" y="90" width="16" height="16" rx="2" fill="#1e293b"/><text x="130" y="102" fill="#94a3b8" font-size="9" font-weight="bold" text-anchor="end">BAT-</text></g>
+
+        <!-- Right System Pads: OUT+, OUT- -->
+        <g class="pin-hover"><rect x="220" y="50" width="16" height="16" rx="2" fill="#ef4444"/><text x="210" y="42" fill="#ef4444" font-size="9" font-weight="bold" text-anchor="end">OUT+ (SYS)</text></g>
+        <g class="pin-hover"><rect x="220" y="90" width="16" height="16" rx="2" fill="#475569"/><text x="210" y="122" fill="#94a3b8" font-size="9" font-weight="bold" text-anchor="end">OUT- (GND)</text></g>
+      </g>
+
+
+      <!-- 8. Protected 1S 3.7V 500mAh LiPo Battery (Bottom-Right) -->
+      <g id="modBattery" transform="translate(830, 800)" filter="url(#shadowModule)">
+        <!-- Silver Foil Pouch Cell -->
+        <rect x="0" y="0" width="220" height="120" rx="6" fill="url(#gradLipo)" stroke="#94a3b8" stroke-width="1.5"/>
+        <!-- Yellow Kapton Tape Top Seal -->
+        <rect x="0" y="0" width="45" height="120" rx="3" fill="#ca8a04" opacity="0.85"/>
+        <text x="125" y="50" fill="#0f172a" font-size="12" font-weight="900" text-anchor="middle">1S 3.7V 500mAh</text>
+        <text x="125" y="70" fill="#334155" font-size="9" font-weight="bold" text-anchor="middle">Lithium-Polymer Cell</text>
+        <text x="125" y="85" fill="#475569" font-size="8" text-anchor="middle">Integrated PCM Protection Circuit</text>
+
+        <!-- Red / Black Wire leads -->
+        <circle cx="10" cy="40" r="5" fill="#dc2626"/>
+        <text x="22" y="44" fill="#ffffff" font-size="9" font-weight="bold">B+</text>
+        <circle cx="10" cy="80" r="5" fill="#0f172a"/>
+        <text x="22" y="84" fill="#ffffff" font-size="9" font-weight="bold">B-</text>
+      </g>
+
+
+      <!-- 9. 2-Pin Magnetic Pogo Dock Connector (Bottom-Left) -->
+      <g id="modPogo" transform="translate(140, 800)" filter="url(#shadowModule)">
+        <rect x="0" y="0" width="140" height="110" rx="8" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+        <text x="70" y="24" fill="#94a3b8" font-size="9" font-weight="bold" text-anchor="middle">2-PIN MAGNETIC DOCK</text>
+
+        <!-- Gold Pogo Pins -->
+        <!-- Pin 1 (+5V) -->
+        <circle cx="110" cy="40" r="8" fill="#fbbf24" stroke="#d97706" stroke-width="2"/>
+        <text x="90" y="44" fill="#fbbf24" font-size="9" font-weight="bold" text-anchor="end">Pin 1 (+5V)</text>
+
+        <!-- Pin 2 (GND) -->
+        <circle cx="110" cy="80" r="8" fill="#94a3b8" stroke="#475569" stroke-width="2"/>
+        <text x="90" y="84" fill="#94a3b8" font-size="9" font-weight="bold" text-anchor="end">Pin 2 (GND)</text>
+      </g>
+
+
+      <!-- 10. Discrete Components (Resistors & 1N4148 Diode) -->
+      <!-- 10k & 20k Resistors Voltage Divider -->
+      <g id="compDivider" transform="translate(300, 710)">
+        <rect x="0" y="0" width="140" height="60" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="70" y="16" fill="#94a3b8" font-size="8" font-weight="bold" text-anchor="middle">VOLTAGE DIVIDER (GPIO5)</text>
+        <!-- 10k Resistor -->
+        <rect x="15" y="28" width="40" height="14" rx="3" fill="#fde68a" stroke="#d97706"/>
+        <text x="35" y="39" fill="#0f172a" font-size="8" font-weight="bold" text-anchor="middle">10kΩ</text>
+        <!-- 20k Resistor -->
+        <rect x="85" y="28" width="40" height="14" rx="3" fill="#fde68a" stroke="#d97706"/>
+        <text x="105" y="39" fill="#0f172a" font-size="8" font-weight="bold" text-anchor="middle">20kΩ</text>
+        <!-- Junction Pin -->
+        <circle cx="70" cy="35" r="4" fill="#ec4899"/>
+      </g>
+
+      <!-- 1N4148 Diode -->
+      <g id="compDiode" transform="translate(470, 680)">
+        <rect x="0" y="0" width="80" height="50" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="40" y="14" fill="#94a3b8" font-size="8" font-weight="bold" text-anchor="middle">1N4148 DIODE</text>
+        <!-- Glass body -->
+        <rect x="15" y="22" width="50" height="14" rx="3" fill="#fdba74" stroke="#ea580c"/>
+        <!-- Black Band (Cathode) on Left -->
+        <rect x="18" y="22" width="8" height="14" fill="#0f172a"/>
+        <text x="50" y="33" fill="#0f172a" font-size="8" font-weight="bold" text-anchor="middle">1N4148</text>
+      </g>
+
+      <!-- 11. SPDT Micro Slide Switch (Main Battery Power Cut-Off) -->
+      <g id="modSwitch" transform="translate(680, 800)" filter="url(#shadowModule)" class="cursor-pointer" onclick="togglePowerSwitch()">
+        <!-- Outer Metal Mounting Bracket -->
+        <rect x="0" y="12" width="95" height="66" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+        <text x="47" y="10" fill="#38bdf8" font-size="9" font-weight="bold" text-anchor="middle">SPDT SLIDE SWITCH</text>
+        <text x="47" y="86" fill="#94a3b8" font-size="7.5" text-anchor="middle">series w/ BAT+ (main pwr)</text>
+
+        <!-- Mounting Ears / Eyelets -->
+        <circle cx="6" cy="45" r="3.5" fill="#0f172a" stroke="#94a3b8"/>
+        <circle cx="89" cy="45" r="3.5" fill="#0f172a" stroke="#94a3b8"/>
+
+        <!-- Metal Top Plate with nickel finish -->
+        <rect x="14" y="22" width="67" height="46" rx="2" fill="url(#gradMetalShield)" stroke="#cbd5e1" stroke-width="1.2"/>
+
+        <!-- Actuator Travel Slot -->
+        <rect x="20" y="38" width="55" height="14" rx="2" fill="#0f172a"/>
+
+        <!-- Interactive Sliding Knob (Black Plastic with Ridges) -->
+        <g id="switchKnob" transform="translate(23, 33)">
+          <rect x="0" y="0" width="20" height="24" rx="2.5" fill="#020617" stroke="#475569" stroke-width="1"/>
+          <line x1="6" y1="5" x2="6" y2="19" stroke="#64748b" stroke-width="1.2"/>
+          <line x1="10" y1="5" x2="10" y2="19" stroke="#64748b" stroke-width="1.2"/>
+          <line x1="14" y1="5" x2="14" y2="19" stroke="#64748b" stroke-width="1.2"/>
+        </g>
+
+        <!-- Power Status Indicator Badge -->
+        <rect id="switchBadge" x="30" y="14" width="35" height="12" rx="2" fill="#15803d"/>
+        <text id="switchBadgeText" x="47" y="23" fill="#ffffff" font-size="7" font-weight="bold" text-anchor="middle">ON (RUN)</text>
+
+        <!-- Solder Terminals with Heatshrink Sleeves (matching physical build photo) -->
+        <!-- Pin 3 (ON throw - Left): output to TP4056 BAT+ at (680, 840) -->
+        <rect x="10" y="38" width="8" height="6" rx="1" fill="#fbbf24"/>
+        <rect x="-2" y="35" width="16" height="12" rx="2" fill="#0f172a" stroke="#334155"/>
+        <text x="3" y="60" fill="#22c55e" font-size="7" font-weight="bold">ON</text>
+
+        <!-- Pin 2 (Common - Right): input from LiPo B+ at (775, 840) -->
+        <rect x="77" y="38" width="8" height="6" rx="1" fill="#fbbf24"/>
+        <rect x="81" y="35" width="16" height="12" rx="2" fill="#0f172a" stroke="#334155"/>
+        <text x="82" y="60" fill="#f87171" font-size="7" font-weight="bold">COM</text>
+
+        <!-- Pin 1 (OFF / NC throw - Top Right): Unconnected -->
+        <rect x="77" y="16" width="6" height="6" rx="1" fill="#64748b"/>
+        <text x="88" y="22" fill="#64748b" font-size="6" font-weight="bold">NC</text>
+      </g>
+
+    </svg>
+  </div>
+
+  <!-- Detailed Pinout & Circuit Diagnostics Table -->
+  <div class="max-w-[1500px] mx-auto mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- Card 1: ESP32-S3 Left Side (GPIO1 - GPIO7) -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+      <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2 mb-3 pb-2 border-b border-slate-800">
+        <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+        ESP32-S3 Left Side Pinout
+      </h3>
+      <table class="w-full text-xs text-left">
+        <thead class="text-slate-400 font-semibold border-b border-slate-800">
+          <tr>
+            <th class="pb-2">Pin</th>
+            <th class="pb-2">Connected Component</th>
+            <th class="pb-2">Function & Notes</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800 text-slate-300">
+          <tr>
+            <td class="py-2 font-mono font-bold text-purple-400">GPIO1</td>
+            <td>INMP441 WS & MAX98357A LRC</td>
+            <td>I²S Word Select / LR Clock (Shared)</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-purple-400">GPIO2</td>
+            <td>INMP441 SCK & MAX98357A BCLK</td>
+            <td>I²S Bit Clock (Shared)</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-orange-400">GPIO4</td>
+            <td>MPU6050 INT Pin</td>
+            <td>Hardware Motion Wake Interrupt (Active HIGH)</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-pink-400">GPIO5</td>
+            <td>10kΩ / 20kΩ Voltage Divider</td>
+            <td>Dock Sense (3.3V=Docked, 0V=Undocked)</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-cyan-400">GPIO6</td>
+            <td>TTP223 Touch I/O</td>
+            <td>Capacitive Touch Expression Controller</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-purple-400">GPIO7</td>
+            <td>1N4148 Diode Anode</td>
+            <td>TP4056 Charge Status (Active LOW, pullup)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Card 2: ESP32-S3 Right Side (Power & I2C/I2S) -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+      <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2 mb-3 pb-2 border-b border-slate-800">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+        ESP32-S3 Right Side Pinout
+      </h3>
+      <table class="w-full text-xs text-left">
+        <thead class="text-slate-400 font-semibold border-b border-slate-800">
+          <tr>
+            <th class="pb-2">Pin</th>
+            <th class="pb-2">Connected Component</th>
+            <th class="pb-2">Function & Notes</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800 text-slate-300">
+          <tr>
+            <td class="py-2 font-mono font-bold text-red-500">5V</td>
+            <td>TP4056 OUT+</td>
+            <td>System Power Rail (Dock 5V or Battery)</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-slate-400">GND</td>
+            <td>Common Ground Bus</td>
+            <td>System Return Ground (all modules tied)</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-rose-400">3V3</td>
+            <td>OLED, MPU, TTP223, INMP441</td>
+            <td>3.3V Regulated Output (max 500mA LDO)</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-yellow-400">GPIO11</td>
+            <td>MAX98357A DIN</td>
+            <td>I²S Audio TX (Chirp Sound Effects)</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-yellow-400">GPIO10</td>
+            <td>INMP441 SD (Data Out)</td>
+            <td>I²S Audio RX (Acoustic Clap Detection)</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-green-400">GPIO9</td>
+            <td>OLED SCL & MPU6050 SCL</td>
+            <td>Shared I²C Clock (400 kHz Fast Mode)</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-sky-400">GPIO8</td>
+            <td>OLED SDA & MPU6050 SDA</td>
+            <td>Shared I²C Data (400 kHz Fast Mode)</td>
+          </tr>
+          <tr>
+            <td class="py-2 font-mono font-bold text-amber-400">BAT SW</td>
+            <td>SPDT Slide Switch (BAT+)</td>
+            <td>Pin 2: LiPo B+ in | Pin 3: TP4056 BAT+ out | Pin 1: NC (OFF)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Card 3: Verification & Protection Highlights -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+      <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2 mb-3 pb-2 border-b border-slate-800">
+        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+        Circuit Safety & Protection Guarantees
+      </h3>
+      <ul class="text-xs space-y-2 text-slate-300">
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 font-bold">✓</span>
+          <span><strong>Physical SPDT Battery Isolation Switch</strong>: Series cut-off on LiPo BAT+ prevents quiescent drain in storage and provides true zero-power cold isolation when flashing USB firmware.</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 font-bold">✓</span>
+          <span><strong>1N4148 Diode Reverse Blocking</strong>: Protects ESP32-S3 GPIO7 from seeing the raw 5V charger rail when the TP4056 red LED is off.</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 font-bold">✓</span>
+          <span><strong>10kΩ/20kΩ Voltage Divider</strong>: Accurately steps the 5.0V dock line down to 3.33V for safe logic level on GPIO5.</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 font-bold">✓</span>
+          <span><strong>Protected 1S LiPo Cell</strong>: Integrated PCM protection board protects against overcharge (4.2V), overdischarge (2.8V), and short circuits.</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 font-bold">✓</span>
+          <span><strong>Half-Duplex I²S Bus Arbitration</strong>: Firmware gates microphone RX and speaker TX sequentially to prevent speaker feedback.</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 font-bold">✓</span>
+          <span><strong>USB Flashing Interlock</strong>: Flash firmware via Native USB CDC only when undocked and battery disconnected.</span>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+
+  <script>
+    const tooltip = document.getElementById('tooltip');
+    const wires = document.querySelectorAll('.wire');
+
+    // Tooltip and Hover Handling
+    wires.forEach(wire => {
+      wire.addEventListener('mouseenter', (e) => {
+        const info = wire.getAttribute('data-info');
+        if (!info) return;
+        tooltip.innerHTML = `<strong>${wire.getAttribute('data-group').toUpperCase()} CONNECTION</strong><br>${info}`;
+        tooltip.style.display = 'block';
+        wire.classList.add('highlighted');
+      });
+
+      wire.addEventListener('mousemove', (e) => {
+        tooltip.style.left = (e.pageX + 15) + 'px';
+        tooltip.style.top = (e.pageY + 15) + 'px';
+      });
+
+      wire.addEventListener('mouseleave', () => {
+        tooltip.style.display = 'none';
+        wire.classList.remove('highlighted');
+      });
+    });
+
+    // Filtering Functionality
+    function filterWires(group) {
+      // Update buttons
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        if (btn.getAttribute('data-group') === group) {
+          btn.classList.add('bg-blue-600', 'text-white');
+          btn.classList.remove('bg-slate-800', 'text-slate-300');
+        } else {
+          btn.classList.remove('bg-blue-600', 'text-white');
+          btn.classList.add('bg-slate-800', 'text-slate-300');
+        }
+      });
+
+      wires.forEach(wire => {
+        if (group === 'all' || wire.getAttribute('data-group') === group) {
+          wire.classList.remove('dimmed');
+        } else {
+          wire.classList.add('dimmed');
+        }
+      });
+    }
+
+    function resetZoom() {
+      filterWires('all');
+    }
+
+    // Interactive SPDT Power Switch Logic
+    let isPowerSwitchOn = true;
+    function togglePowerSwitch() {
+      isPowerSwitchOn = !isPowerSwitchOn;
+      const knob = document.getElementById('switchKnob');
+      const badge = document.getElementById('switchBadge');
+      const badgeText = document.getElementById('switchBadgeText');
+      const wire = document.getElementById('wireBatSwitched');
+      
+      if (isPowerSwitchOn) {
+        knob.setAttribute('transform', 'translate(23, 33)');
+        badge.setAttribute('fill', '#15803d');
+        badgeText.textContent = 'ON (RUN)';
+        wire.setAttribute('stroke', '#ef4444');
+        wire.setAttribute('stroke-dasharray', 'none');
+        wire.style.opacity = '1';
+      } else {
+        knob.setAttribute('transform', 'translate(51, 33)');
+        badge.setAttribute('fill', '#dc2626');
+        badgeText.textContent = 'OFF (SAFE)';
+        wire.setAttribute('stroke', '#64748b');
+        wire.setAttribute('stroke-dasharray', '6 4');
+        wire.style.opacity = '0.4';
+      }
+    }
+  </script>
+</body>
+</html>

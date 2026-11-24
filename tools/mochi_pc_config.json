@@ -1,0 +1,11 @@
+{
+  "host": "192.168.1.100",
+  "token": "mochi_secret_token",
+  "interval": 3.0,
+  "send_cpu": true,
+  "send_ram": true,
+  "send_gpu": true,
+  "send_temp": true,
+  "minimize_to_tray_on_close": true,
+  "auto_start_stream": true
+}
