@@ -1,13 +1,14 @@
 #pragma once
 
 #include <Arduino.h>
-#include <driver/i2s.h>
+#include <esp_idf_version.h>
 #include "board_config.h"
 
 // ============================================================================
 // Mochi Bot V1 - Milestone 3 Sequential I2S Bus Arbiter
-// Manages shared clocks: GPIO2 (BCLK) and GPIO1 (WS/LRC)
-// Sequential switching: RX (INMP441 GPIO10) vs TX (MAX98357A GPIO11)
+// Manages shared clocks: PIN_I2S_BCLK and PIN_I2S_WS
+// Sequential switching: RX (INMP441) vs TX (MAX98357A)
+// Supports both ESP-IDF 4.x (ESP32-S3) and ESP-IDF 5.x (ESP32-C6)
 // ============================================================================
 
 enum I2SBusMode {

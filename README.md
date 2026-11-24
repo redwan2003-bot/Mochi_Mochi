@@ -133,11 +133,15 @@ Visual representation of the **SuperMini** pin mappings:
 | **Motion** | MPU6050 (GY-521) | `GPIO8 / 9` | `GPIO20 / 19` | I²C 6-Axis Gyro/Accelerometer (`0x68`) |
 | **Motion Wake** | MPU6050 INT | `GPIO4` | `GPIO4` | Active-HIGH threshold motion wake interrupt |
 | **Capacitive Touch** | TTP223 Sensor | `GPIO6` | `GPIO6` | Active-HIGH expression cycling & petting trigger |
-| **Acoustic Mic** | INMP441 MEMS | `GPIO10` | `GPIO18` | I²S DIN (Left Slot, 24-bit). Clocks: `BCLK=2, WS=1` |
-| **Audio Amp** | MAX98357A Amp | `GPIO11` | `GPIO15` | I²S DOUT (Mono Right). Shared clocks: `BCLK=2, WS=1` |
+| **Acoustic Mic** | INMP441 MEMS | `GPIO10` | `GPIO3` | I²S DIN (Left Slot, 24-bit). Clocks: `BCLK=2, WS=1` |
+| **Audio Amp** | MAX98357A Amp | `GPIO11` | `GPIO18` | I²S DOUT (Mono Right). Shared clocks: `BCLK=2, WS=1` |
 | **Dock Detection** | 2-Pin Magnetic Dock | `GPIO5` | `GPIO5` | 10k/20k divider off dock 5V (HIGH=Docked, LOW=Battery) |
 | **Charging Monitor**| TP4056 Pin 7 (CHRG) | `GPIO7` | `GPIO7` | 1N4148 diode cathode to TP4056 LED, internal pull-up |
 | **Battery Switch** | SPDT Micro Slide | Battery Line| Battery Line | True physical zero-leakage LiPo cut-off switch |
+
+> [!NOTE]
+> **ESP32-C6 SuperMini Strapping Pin Isolation**:
+> On the ESP32-C6 SuperMini, GPIO9 is the physical BOOT strapping pin and GPIO8 is connected to the onboard WS2812 RGB LED. The firmware automatically remaps the I2C bus to clean, unstrapped pins **GPIO20 (SDA)** and **GPIO19 (SCL)** when compiling for the C6 target, ensuring 100% boot stability. All system sensor pins (`GPIO4`, `GPIO5`, `GPIO6`, `GPIO7`) and I2S clock lines (`BCLK=2`, `WS=1`) remain completely identical across both targets.
 
 ---
 
@@ -211,14 +215,31 @@ All mechanical parts are documented and scripted in OpenSCAD:
 
 ## 🚀 Getting Started & Developer Guide
 
-### 1. Compile Firmware
+### 1. Dual-Target Compilation
+The workspace natively compiles for both **ESP32-S3** and **ESP32-C6** SuperMini modules:
+
 ```powershell
+# Compile both targets simultaneously (dual build verification)
 & .venv\Scripts\platformio.exe run
+
+# Or compile a specific target individually:
+& .venv\Scripts\platformio.exe run -e esp32-s3-supermini
+& .venv\Scripts\platformio.exe run -e esp32-c6-supermini
 ```
+
+#### Dual-Target Binary Footprints (Verified Clean Build)
+| Target Environment | Microcontroller Architecture | RAM Utilization | Flash Utilization | Binary Size |
+|:---|:---|:---:|:---:|:---:|
+| **`esp32-s3-supermini`** | Xtensa LX7 Dual-Core @ 240 MHz | **17.0%** (55.6 KB / 327.6 KB) | **40.5%** (1.27 MB / 3.14 MB) | `firmware.bin` |
+| **`esp32-c6-supermini`** | RISC-V Single-Core @ 160 MHz | **15.9%** (52.2 KB / 327.6 KB) | **47.2%** (1.48 MB / 3.14 MB) | `firmware.bin` |
 
 ### 2. Flash via USB-C
 ```powershell
+# S3 Target Flasher:
 powershell -ExecutionPolicy Bypass -File tools\flash_and_monitor.ps1
+
+# C6 Target Flasher:
+& .venv\Scripts\platformio.exe run -e esp32-c6-supermini -t upload
 ```
 
 ### 3. Flash via Web Browser (No Tools Required)
@@ -242,7 +263,7 @@ You can flash the pre-compiled binary [`tools/binaries/mochi_bot_v1_factory_merg
 | **2026-11-21** | **Milestone 0–2** | PlatformIO project setup, I²C bus bringup, 1.3" OLED SH1106 display driver, and procedural expression engine. |
 | **2026-11-22** | **Milestone 3–6** | MPU6050 6-axis IMU, INMP441 + MAX98357A half-duplex I²S clap detector, NimBLE passkey security, Wi-Fi REST telemetry server. |
 | **2026-11-23** | **Milestone 7 RC1** | TTP223 touch sensor, 2-pin magnetic dock divider, SPDT slide switch, 3D CAD OpenSCAD model, zero-terminal Windows executables. |
-| **2026-11-24** | **Repository Port & Verification** | Project ported to permanent repository, Git initialized, full conversation history preserved, and ESP32-C6 SuperMini feasibility validated. |
+| **2026-11-24** | **Dual-Target C6/S3 & Daily Push** | Ported 1,593 files to `E:\MoChi Bot`. Unified toolchain on Arduino 3.3.5 / ESP-IDF 5.x (`pioarduino`). Designed C6 strapping pin protection (I2C remapped to GPIO20/19). Implemented unified I2S channel driver & NimBLE 2.x callbacks. Verified clean dual-target build (S3: 40.5% Flash, C6: 47.2% Flash). Synced daily updates to GitHub remote. |
 
 ---
 

@@ -18,6 +18,61 @@ static uint32_t s_last_status_notify_ms = 0;
 
 constexpr uint32_t DRIVING_MODE_TIMEOUT_MS = 15000; // Return to normal if no speed updates for 15s
 
+#if defined(NIMBLE_CPP_VERSION_MAJOR) && (NIMBLE_CPP_VERSION_MAJOR >= 2)
+// ============================================================================
+// NimBLE-Arduino 2.x API (ESP-IDF 5.x / Modern Core Target)
+// ============================================================================
+
+class MochiServerCallbacks : public NimBLEServerCallbacks {
+    void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
+        s_is_connected = true;
+        Serial.printf("[BLE] Android companion connected (Peer: %s)\n",
+                      connInfo.getAddress().toString().c_str());
+        
+        // Wake up state machine and display if bot was sleeping
+        app_state_wake();
+    }
+
+    void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) override {
+        s_is_connected = false;
+        s_driving_speed_kmh = 0;
+        Serial.println("[BLE] Companion disconnected. Restarting advertising.");
+        NimBLEDevice::startAdvertising();
+    }
+
+    uint32_t onPassKeyDisplay() override {
+        uint32_t passkey = esp_random() % 1000000;
+        pairing_screen_show(passkey);
+        return passkey;
+    }
+
+    void onAuthenticationComplete(NimBLEConnInfo& connInfo) override {
+        if (connInfo.isEncrypted()) {
+            pairing_screen_show_success();
+            if (settings_get().sound_enabled) {
+                audio_play_chirp();
+            }
+        } else {
+            pairing_screen_hide();
+        }
+    }
+
+    void onConfirmPassKey(NimBLEConnInfo& connInfo, uint32_t pass_key) override {
+        pairing_screen_show(pass_key);
+    }
+};
+
+#define NIMBLE_WRITE_ARGS NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo
+#define NIMBLE_READ_ARGS  NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo
+
+#else
+// ============================================================================
+// NimBLE-Arduino 1.x API (ESP32-S3 / Arduino Core 2.x Baseline)
+// ============================================================================
+
+#define NIMBLE_WRITE_ARGS NimBLECharacteristic* pCharacteristic
+#define NIMBLE_READ_ARGS  NimBLECharacteristic* pCharacteristic
+
 // ----------------------------------------------------------------------------
 // NimBLE Security Callbacks (MITM-Safe Display Only Passkey Bonding)
 // ----------------------------------------------------------------------------
@@ -73,12 +128,13 @@ class MochiServerCallbacks : public NimBLEServerCallbacks {
         NimBLEDevice::startAdvertising();
     }
 };
+#endif
 
 // ----------------------------------------------------------------------------
 // Characteristic Callbacks: Time Sync
 // ----------------------------------------------------------------------------
 class TimeSyncCallbacks : public NimBLECharacteristicCallbacks {
-    void onWrite(NimBLECharacteristic* pCharacteristic) override {
+    void onWrite(NIMBLE_WRITE_ARGS) override {
         std::string val = pCharacteristic->getValue();
         if (val.length() > 0 && val[0] == '{') {
             // JSON string format: {"epoch": 1700000000, "tz": 360}
@@ -104,7 +160,7 @@ class TimeSyncCallbacks : public NimBLECharacteristicCallbacks {
 // Characteristic Callbacks: Notifications
 // ----------------------------------------------------------------------------
 class NotificationCallbacks : public NimBLECharacteristicCallbacks {
-    void onWrite(NimBLECharacteristic* pCharacteristic) override {
+    void onWrite(NIMBLE_WRITE_ARGS) override {
         std::string val = pCharacteristic->getValue();
         if (val.length() > 0) {
             JsonDocument doc;
@@ -126,7 +182,7 @@ class NotificationCallbacks : public NimBLECharacteristicCallbacks {
 // Characteristic Callbacks: Driving Speed
 // ----------------------------------------------------------------------------
 class SpeedCallbacks : public NimBLECharacteristicCallbacks {
-    void onWrite(NimBLECharacteristic* pCharacteristic) override {
+    void onWrite(NIMBLE_WRITE_ARGS) override {
         std::string val = pCharacteristic->getValue();
         if (val.length() == 1) {
             s_driving_speed_kmh = (uint8_t)val[0];
@@ -146,7 +202,7 @@ class SpeedCallbacks : public NimBLECharacteristicCallbacks {
 // Characteristic Callbacks: Settings Sync
 // ----------------------------------------------------------------------------
 class SettingsCallbacks : public NimBLECharacteristicCallbacks {
-    void onRead(NimBLECharacteristic* pCharacteristic) override {
+    void onRead(NIMBLE_READ_ARGS) override {
         MochiSettings& s = settings_get();
         JsonDocument doc;
         doc["dock_brt"] = s.dock_brightness;
@@ -161,7 +217,7 @@ class SettingsCallbacks : public NimBLECharacteristicCallbacks {
         pCharacteristic->setValue(json.c_str());
     }
 
-    void onWrite(NimBLECharacteristic* pCharacteristic) override {
+    void onWrite(NIMBLE_WRITE_ARGS) override {
         std::string val = pCharacteristic->getValue();
         if (val.length() > 0) {
             JsonDocument doc;
@@ -186,15 +242,23 @@ void ble_manager_init() {
     Serial.println("[BLE] Initializing NimBLE companion service (Mochi-Bot)...");
 
     NimBLEDevice::init("Mochi-Bot");
-    NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Max TX power for reliable range
 
-    // Security Configuration: MITM-safe Passkey bonding
+#if defined(NIMBLE_CPP_VERSION_MAJOR) && (NIMBLE_CPP_VERSION_MAJOR >= 2)
+    NimBLEDevice::setPower(9); // 9 dBm max TX power
+    NimBLEDevice::setSecurityAuth(true, true, true); // Bonding, MITM, Secure Connections
+    NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY); // Bot displays code, phone inputs it
+
+    NimBLEServer* pServer = NimBLEDevice::createServer();
+    pServer->setCallbacks(new MochiServerCallbacks());
+#else
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Max TX power for reliable range
     NimBLEDevice::setSecurityAuth(true, true, true); // Bonding, MITM, Secure Connections
     NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY); // Bot displays code, phone inputs it
     NimBLEDevice::setSecurityCallbacks(new MochiSecurityCallbacks());
 
     NimBLEServer* pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new MochiServerCallbacks());
+#endif
 
     // Create Mochi Service
     NimBLEService* pService = pServer->createService(MOCHI_SERVICE_UUID);
@@ -238,9 +302,13 @@ void ble_manager_init() {
     // Start Advertising
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(MOCHI_SERVICE_UUID);
+#if defined(NIMBLE_CPP_VERSION_MAJOR) && (NIMBLE_CPP_VERSION_MAJOR >= 2)
+    pAdvertising->enableScanResponse(true);
+#else
     pAdvertising->setScanResponse(true);
     pAdvertising->setMinPreferred(0x06); // 7.5ms
     pAdvertising->setMaxPreferred(0x12); // 22.5ms
+#endif
     NimBLEDevice::startAdvertising();
 
     Serial.println("[BLE] Advertising started. Waiting for companion connection.");
