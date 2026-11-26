@@ -115,8 +115,10 @@ module rear_shell_blank(w, h, z_start, z_end, r_corner, r_edge) {
 module mustache_deboss(depth) {
     if (ENABLE_LOGO) {
         translate([0, 0, -eps])
-            linear_extrude(height = depth + eps)
-                import("01_Brand_Logos/bahadur-mustache-cad-deboss.svg", center = true);
+            linear_extrude(height = depth + 2*eps)
+                offset(r = -0.05)
+                    offset(r = 0.05)
+                        import("01_Brand_Logos/bahadur-mustache-cad-deboss.svg", center = true);
     }
 }
 
@@ -391,8 +393,8 @@ module part_02_rear() {
             }
         }
 
-        // 10. Rear Upper Mustache Deboss (14.4 x 9.0 mm, 0.40 mm deep at X = 24.5, Y = 7.2, Z = 19.5)
-        translate([speaker_x, 7.2, head_depth - 0.40])
+        // 10. Rear Upper Mustache Deboss (14.4 x 9.0 mm, 0.40 mm deep at X = 24.5, Y = 8.25, Z = 19.5)
+        translate([speaker_x, 8.25, head_depth - 0.40])
             mustache_deboss(0.40);
     }
 }
