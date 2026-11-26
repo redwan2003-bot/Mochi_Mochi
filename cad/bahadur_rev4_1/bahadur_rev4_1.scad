@@ -290,11 +290,25 @@ module part_02_rear() {
             // Flat Rear Body Blank (Z = 12.7 .. 19.5, flat at Z = 12.7 seam face, R1.5 fillet at rear face Z = 19.5)
             rear_shell_blank(bot_w, bot_h, seam, head_depth, corner_r, edge_r);
 
-            // Sculpted +4.8 mm Low-Profile Speaker Pod (Z = 19.5 .. 24.3 mm, Ø44.0 mm)
-            translate([speaker_x, speaker_y, head_depth - 0.2])
-                cylinder(r1 = 22.0, r2 = 19.8, h = pod_depth - head_depth + 0.2, $fn = 48);
-            translate([speaker_x, speaker_y, pod_depth - 0.8 - eps])
-                cylinder(r = 19.8, h = 0.8 + eps, $fn = 48);
+            // Sculpted +4.8 mm Low-Profile Polished Speaker Dome (Z = 19.5 .. 24.3 mm, Ø45.6 mm flare)
+            translate([speaker_x, speaker_y, 0])
+                rotate_extrude($fn = 72)
+                    polygon(points = [
+                        [0.0, pod_depth],
+                        [19.2, pod_depth],
+                        [19.7, pod_depth - 0.02],
+                        [20.2, pod_depth - 0.12],
+                        [20.7, pod_depth - 0.35],
+                        [21.1, pod_depth - 0.75],
+                        [21.5, pod_depth - 1.45],
+                        [21.8, pod_depth - 2.50],
+                        [22.1, pod_depth - 3.60],
+                        [22.4, head_depth + 0.30],
+                        [22.6, head_depth + 0.10],
+                        [22.8, head_depth],
+                        [22.8, 16.0],
+                        [0.0, 16.0]
+                    ]);
         }
 
         // --- SUBTRACTIONS FROM REAR SHELL ---
