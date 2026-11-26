@@ -1,0 +1,251 @@
+{
+  "version": "Bahadur Rev 4.1 (60.5 mm Compact Master)",
+  "parts": {
+    "01_front": {
+      "filename": "01_Front_shell.stl",
+      "volume_mm3": 7924.55,
+      "bounding_box_mm": [
+        49.0,
+        60.5,
+        13.9
+      ],
+      "bounds_min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "bounds_max": [
+        49.0,
+        60.5,
+        13.9
+      ],
+      "triangle_count": 2088,
+      "bad_half_edges": 0,
+      "components": 1,
+      "watertight": true,
+      "sha256": "5302b97036a3246beafea3195eeaea2c7181460c65d63c1180c94443d5a83f22"
+    },
+    "02_rear": {
+      "filename": "02_Rear_shell.stl",
+      "volume_mm3": 6047.11,
+      "bounding_box_mm": [
+        49.0,
+        60.5,
+        11.6
+      ],
+      "bounds_min": [
+        0.0,
+        0.0,
+        12.7
+      ],
+      "bounds_max": [
+        49.0,
+        60.5,
+        24.3
+      ],
+      "triangle_count": 12730,
+      "bad_half_edges": 0,
+      "components": 1,
+      "watertight": true,
+      "sha256": "fce3cb7683fac6085b6f1cbd754a117eafe4bc7082a9d85f6586f0413963d5ca"
+    },
+    "03_baffle": {
+      "filename": "03_Acoustic_baffle.stl",
+      "volume_mm3": 830.99,
+      "bounding_box_mm": [
+        42.1,
+        42.1,
+        0.6
+      ],
+      "bounds_min": [
+        3.45,
+        16.45,
+        17.5
+      ],
+      "bounds_max": [
+        45.55,
+        58.55,
+        18.1
+      ],
+      "triangle_count": 272,
+      "bad_half_edges": 0,
+      "components": 1,
+      "watertight": true,
+      "sha256": "d954ca3e3435fa19391756bd7a8ece83c1d7406ed0c7596c2c193f3c717d1489"
+    },
+    "04_floor": {
+      "filename": "04_Battery_isolation_floor.stl",
+      "volume_mm3": 2059.95,
+      "bounding_box_mm": [
+        44.6,
+        56.1,
+        1.8
+      ],
+      "bounds_min": [
+        2.2,
+        2.2,
+        11.9
+      ],
+      "bounds_max": [
+        46.8,
+        58.3,
+        13.7
+      ],
+      "triangle_count": 284,
+      "bad_half_edges": 0,
+      "components": 1,
+      "watertight": true,
+      "sha256": "1a5c6900c5230d30751a20b4e5aa8a4308a5e95d32743d863ce76cf8f19ca6c1"
+    },
+    "08_collar": {
+      "filename": "08_Flush_switch_collar.stl",
+      "volume_mm3": 9.69,
+      "bounding_box_mm": [
+        1.5,
+        3.4,
+        2.8
+      ],
+      "bounds_min": [
+        47.5,
+        44.2,
+        8.1
+      ],
+      "bounds_max": [
+        49.0,
+        47.6,
+        10.9
+      ],
+      "triangle_count": 96,
+      "bad_half_edges": 0,
+      "components": 1,
+      "watertight": true,
+      "sha256": "19ef1a1fb0efda3efdd07919ad7c026dea81b9ba79d324e56b170418dafd9c2c"
+    },
+    "05_dock_a": {
+      "filename": "05_Dock_A_River_Stone.stl",
+      "volume_mm3": 67899.78,
+      "bounding_box_mm": [
+        80.0,
+        60.0,
+        25.85
+      ],
+      "bounds_min": [
+        4.0,
+        4.0,
+        0.07
+      ],
+      "bounds_max": [
+        84.0,
+        64.0,
+        25.93
+      ],
+      "triangle_count": 756,
+      "bad_half_edges": 0,
+      "components": 1,
+      "watertight": true,
+      "sha256": "d78d65d697bc82b6dc307a015b672cae34592b28ba22fa3a232fcb78966156f4"
+    },
+    "06_dock_b": {
+      "filename": "06_Dock_B_Ribbon_Loop.stl",
+      "volume_mm3": 30937.11,
+      "bounding_box_mm": [
+        55.0,
+        58.0,
+        54.0
+      ],
+      "bounds_min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "bounds_max": [
+        55.0,
+        58.0,
+        54.0
+      ],
+      "triangle_count": 788,
+      "bad_half_edges": 0,
+      "components": 1,
+      "watertight": true,
+      "sha256": "8f2fd0e29b5bfe4e1600c7a956f60fa2d4a26853ff49c4e3a71e7780595a0066"
+    },
+    "07_dock_c": {
+      "filename": "07_Dock_C_Plinth_and_Tray.stl",
+      "volume_mm3": 75353.35,
+      "bounding_box_mm": [
+        98.0,
+        60.0,
+        30.0
+      ],
+      "bounds_min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "bounds_max": [
+        98.0,
+        60.0,
+        30.0
+      ],
+      "triangle_count": 816,
+      "bad_half_edges": 0,
+      "components": 1,
+      "watertight": true,
+      "sha256": "cb140c3a19638fa07cf1c1ee9f725a2b82d908521929e249fd211abf5d2a9dbb"
+    }
+  },
+  "pairwise_enclosure_interference": {
+    "01_front_vs_02_rear": {
+      "vol_mm3": 0.0,
+      "max_depth_z_mm": 0.0,
+      "hit_cols": 0,
+      "bbox": null
+    },
+    "01_front_vs_04_floor": {
+      "vol_mm3": 0.0,
+      "max_depth_z_mm": 0.0,
+      "hit_cols": 0,
+      "bbox": null
+    },
+    "02_rear_vs_04_floor": {
+      "vol_mm3": 0.0,
+      "max_depth_z_mm": 0.0,
+      "hit_cols": 0,
+      "bbox": null
+    }
+  },
+  "subsystem_mating_checks": {
+    "02_rear_vs_03_baffle": {
+      "vol_mm3": 0.0,
+      "max_depth_z_mm": 0.0,
+      "hit_cols": 0,
+      "bbox": null
+    },
+    "01_front_vs_08_collar": {
+      "vol_mm3": 0.0,
+      "max_depth_z_mm": 0.0,
+      "hit_cols": 0,
+      "bbox": null
+    }
+  },
+  "dock_seating_interference": {
+    "05_dock_a": {
+      "vol_mm3": 0.0,
+      "max_depth_z_mm": 0.0,
+      "hit_cols": 0,
+      "bbox": null
+    },
+    "06_dock_b": {
+      "vol_mm3": 0.0,
+      "max_depth_z_mm": 0.0,
+      "hit_cols": 0,
+      "bbox": null
+    },
+    "07_dock_c": {
+      "vol_mm3": 0.0,
+      "max_depth_z_mm": 0.0,
+      "hit_cols": 0,
+      "bbox": null
+    }
+  }
+}

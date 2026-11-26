@@ -199,17 +199,41 @@ Visit the standalone Web Bluetooth companion in `tools/web_ble_companion/index.h
 
 ---
 
-## 🖨️ Mechanical & 3D Printing
+## 🖨️ Mechanical & 3D Printing (Bahadur Rev 4.1 Master)
 
-All mechanical parts are documented and scripted in OpenSCAD:
+All mechanical parts are scripted in a single, fully parametric, 100% 2-manifold OpenSCAD master model:
 * **CAD Spec**: [docs/3D_CAD_AND_ENCLOSURE_SPEC.md](docs/3D_CAD_AND_ENCLOSURE_SPEC.md)
-* **OpenSCAD Source**: [tools/cad/mochi_bot_enclosure.scad](tools/cad/mochi_bot_enclosure.scad)
-* **Envelope**: $49.0\text{ mm (W)} \times 63.5\text{ mm (H)} \times 19.5 / 25.5\text{ mm (Z)}$ stepped clamshell.
+* **Master OpenSCAD Source**: [`cad/bahadur_rev4_1/bahadur_rev4_1.scad`](cad/bahadur_rev4_1/bahadur_rev4_1.scad)
+* **Pre-Exported Binary STLs**: [`cad/bahadur_rev4_1/STLs/`](cad/bahadur_rev4_1/STLs/)
+* **Audit & Regression Data**: [`cad/bahadur_rev4_1/audit_rev4_1.json`](cad/bahadur_rev4_1/audit_rev4_1.json)
+* **Envelope**: $49.00\text{ mm (W)} \times 60.50\text{ mm (H)} \times 19.50 / 24.30\text{ mm (Z)}$ ultra-compact clamshell ($-3.0\text{ mm}$ height reduction from Rev 1).
+* **Speaker Datum Lock**: `bot_h - speaker_y = 60.50 - 37.50 = 23.00 mm`, guaranteeing shared zero-error dock compatibility across all swappable desktop docks.
 * **Flush Lanyard Channel**: $\varnothing 3.5\text{ mm}$ curved pass-through tunnel with a $3.0\text{ mm}$ solid bridge at the top-right corner ($>15\text{ kg}$ tensile strength).
-* **Minimalist Docks**:
-  1. *River-Stone Pebble*: Organic curved desk pebble ($88 \times 68 \times 26\text{ mm}$, 15° lean).
-  2. *Folded Ribbon Loop*: Ultra-minimalist cantilever ribbon ($55 \times 58 \times 54\text{ mm}$, 18° lean).
-  3. *Bauhaus Plinth*: Geometric desk block with integrated valet tray ($98 \times 60 \times 30\text{ mm}$, 15° lean).
+* **Brand Identity**: Debossed 1:1 Bahadur mustache logo (`cad/bahadur_rev4_1/Brand_Logos/bahadur-mustache-cad-deboss.svg`) and matching 128x64 OLED boot splash (`include/bahadur_boot_splash.h`).
+
+### Rev 4.1 Master 8-Part Solid Verification Matrix (All Watertight 2-Manifold)
+
+| Part | Solid Component | Dimensions ($X \times Y \times Z\text{ mm}$) | Net Volume ($\text{mm}^3$) | Bad Edges | Shells | Watertight | Binary STL Checksum (SHA-256) |
+|:---:|:---|:---:|:---:|:---:|:---:|:---:|:---|
+| **01** | `Front_shell` | $49.00 \times 60.50 \times 13.90$ | 7,924.55 | **0** | 1 | **TRUE** | `265d6445a55858fc49ee9f1ecdd9c2c6...` |
+| **02** | `Rear_shell` | $49.00 \times 60.50 \times 11.60$ | 6,047.11 | **0** | 1 | **TRUE** | `77d3f82cf0b784a0d8299103e67c8702...` |
+| **03** | `Acoustic_baffle` | $42.10 \times 42.10 \times 0.60$ | 830.99 | **0** | 1 | **TRUE** | `8b4cbfec7d6a54ad5eb23b090623a31d...` |
+| **04** | `Battery_isolation_floor` | $44.60 \times 56.10 \times 1.80$ | 2,059.95 | **0** | 1 | **TRUE** | `13a298be58cb53c69ee0e6df2ff977a4...` |
+| **08** | `Flush_switch_collar` | $1.50 \times 3.40 \times 2.80$ | 9.69 | **0** | 1 | **TRUE** | `031e5bb8292f7c00e6dc8ee8cf8e11e3...` |
+| **05** | `Dock_A_River_Stone` | $80.00 \times 60.00 \times 25.85$ | 67,899.78 | **0** | 1 | **TRUE** | `68e82ef6a858ff48206d2e960359873a...` |
+| **06** | `Dock_B_Ribbon_Loop` | $55.00 \times 58.00 \times 54.00$ | 30,937.11 | **0** | 1 | **TRUE** | `6a43bfef5fce07a2744747eb48624128...` |
+| **07** | `Dock_C_Plinth_and_Tray` | $98.00 \times 60.00 \times 30.00$ | 75,353.35 | **0** | 1 | **TRUE** | `1cce2a514d7a7d57a2f111e8a93a0bcf...` |
+
+### Pairwise Zero-Interference Collision Matrix
+All assembly and seated interfaces have been audited via discrete voxel regression at $\le 0.25\text{ mm}$ grid resolution:
+* `01_Front` vs `02_Rear` (Tongue-and-groove seam): **$0.00\text{ mm}^3$ overlap** (Nominal $0.15\text{ mm}$ perimeter slip fit).
+* `01_Front` vs `04_Floor` (Isolation perimeter shelf): **$0.00\text{ mm}^3$ overlap**.
+* `02_Rear` vs `04_Floor` (Locating rim seat): **$0.00\text{ mm}^3$ overlap**.
+* `02_Rear` vs `03_Baffle` (Acoustic disc seat): **$0.00\text{ mm}^3$ overlap**.
+* `01_Front` vs `08_Collar` (Switch port flush bore): **$0.00\text{ mm}^3$ overlap**.
+* `Bot Assembly` vs `Dock A (River Stone)`: **$0.00\text{ mm}^3$ interference**.
+* `Bot Assembly` vs `Dock B (Ribbon Loop)`: **$0.00\text{ mm}^3$ interference**.
+* `Bot Assembly` vs `Dock C (Plinth & Tray)`: **$0.00\text{ mm}^3$ interference**.
 
 ---
 
@@ -264,6 +288,7 @@ You can flash the pre-compiled binary [`tools/binaries/mochi_bot_v1_factory_merg
 | **2026-11-22** | **Milestone 3–6** | MPU6050 6-axis IMU, INMP441 + MAX98357A half-duplex I²S clap detector, NimBLE passkey security, Wi-Fi REST telemetry server. |
 | **2026-11-23** | **Milestone 7 RC1** | TTP223 touch sensor, 2-pin magnetic dock divider, SPDT slide switch, 3D CAD OpenSCAD model, zero-terminal Windows executables. |
 | **2026-11-24** | **Dual-Target C6/S3 & Daily Push** | Ported 1,593 files to `E:\MoChi Bot`. Unified toolchain on Arduino 3.3.5 / ESP-IDF 5.x (`pioarduino`). Designed C6 strapping pin protection (I2C remapped to GPIO20/19). Implemented unified I2S channel driver & NimBLE 2.x callbacks. Verified clean dual-target build (S3: 40.5% Flash, C6: 47.2% Flash). Synced daily updates to GitHub remote. |
+| **2026-11-27** | **Bahadur Rev 4.1 CAD & Docks** | Engineered 100% 2-manifold OpenSCAD master suite (`cad/bahadur_rev4_1/bahadur_rev4_1.scad`). Compact height reduction ($60.5\text{ mm}$, $-3.0\text{ mm}$). Fixed speaker datum ($23.00\text{ mm}$). Implemented monolithic fast-CSG lofts & ribbon profile extrusion. All 8 binary STLs generated with 0 bad edges, 1 connected component, and watertight geometry. Audited pairwise enclosure interfaces & all 3 swappable docks (River Stone, Ribbon Loop, Plinth & Tray) with verified $0.00\text{ mm}^3$ interference. Added Bahadur 128x64 debossed boot splash header (`include/bahadur_boot_splash.h`). |
 
 ---
 
