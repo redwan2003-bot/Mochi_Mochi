@@ -27,11 +27,11 @@
     },
     "02_rear": {
       "filename": "02_Rear_shell.stl",
-      "volume_mm3": 6047.11,
+      "volume_mm3": 5912.61,
       "bounding_box_mm": [
         49.0,
         60.5,
-        11.6
+        10.8
       ],
       "bounds_min": [
         0.0,
@@ -41,13 +41,13 @@
       "bounds_max": [
         49.0,
         60.5,
-        24.3
+        23.5
       ],
-      "triangle_count": 12730,
+      "triangle_count": 31496,
       "bad_half_edges": 0,
       "components": 1,
       "watertight": true,
-      "sha256": "fce3cb7683fac6085b6f1cbd754a117eafe4bc7082a9d85f6586f0413963d5ca"
+      "sha256": "613dfdaea6a5d2d997c3f8e1f3cbb21122c24b0fea6251c47f80e91b0c41f9ef"
     },
     "03_baffle": {
       "filename": "03_Acoustic_baffle.stl",
@@ -123,7 +123,7 @@
     },
     "05_dock_a": {
       "filename": "05_Dock_A_River_Stone.stl",
-      "volume_mm3": 67899.78,
+      "volume_mm3": 67866.15,
       "bounding_box_mm": [
         80.0,
         60.0,
@@ -143,11 +143,11 @@
       "bad_half_edges": 0,
       "components": 1,
       "watertight": true,
-      "sha256": "d78d65d697bc82b6dc307a015b672cae34592b28ba22fa3a232fcb78966156f4"
+      "sha256": "dbb7a0551710e19957cf72211cd6394be7af49ac616cd46e9392b2352fd8733d"
     },
     "06_dock_b": {
       "filename": "06_Dock_B_Ribbon_Loop.stl",
-      "volume_mm3": 30937.11,
+      "volume_mm3": 30924.9,
       "bounding_box_mm": [
         55.0,
         58.0,
@@ -163,15 +163,15 @@
         58.0,
         54.0
       ],
-      "triangle_count": 788,
+      "triangle_count": 3512,
       "bad_half_edges": 0,
       "components": 1,
       "watertight": true,
-      "sha256": "8f2fd0e29b5bfe4e1600c7a956f60fa2d4a26853ff49c4e3a71e7780595a0066"
+      "sha256": "9fb5247ec03700a5b3c00e359c293191fc12427437077949730f2fbe73294a00"
     },
     "07_dock_c": {
       "filename": "07_Dock_C_Plinth_and_Tray.stl",
-      "volume_mm3": 75353.35,
+      "volume_mm3": 75315.28,
       "bounding_box_mm": [
         98.0,
         60.0,
@@ -187,11 +187,11 @@
         60.0,
         30.0
       ],
-      "triangle_count": 816,
+      "triangle_count": 2016,
       "bad_half_edges": 0,
       "components": 1,
       "watertight": true,
-      "sha256": "cb140c3a19638fa07cf1c1ee9f725a2b82d908521929e249fd211abf5d2a9dbb"
+      "sha256": "be720d17f8e551bd4e38b46dae29968e1a85391bfcbdfd500a5acbb46176ed0c"
     }
   },
   "pairwise_enclosure_interference": {

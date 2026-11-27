@@ -22,7 +22,7 @@ bot_w            = 49.0;
 bot_h            = 60.5;   // Compact height (shrunk -3.0 mm from 63.5)
 seam             = 12.7;
 head_depth       = 19.5;   // Flat rear reference datum
-pod_depth        = 24.3;   // Maximum depth over sculpted speaker dome
+pod_depth        = 23.5;   // Ultra-sleek, low-profile sculpted dome (+4.0 mm, eliminating fat profile)
 
 wall             = 2.0;
 face             = 1.6;
@@ -50,8 +50,8 @@ baffle_z         = 17.5;   // 4.8 mm LiPo bay Z (12.7..17.5; +0.8 mm swelling sa
 baffle_t         = 0.6;    // Circular acoustic baffle plate thickness
 speaker_z        = 18.1;   // baffle_z + baffle_t
 speaker_pocket_d = 40.5;
-speaker_pocket_depth = 5.0;// 18.1..23.1 mm (4.5 mm speaker + 0.5 mm excursion)
-grille_wall      = 1.2;    // 23.1..24.3 mm dome wall
+speaker_pocket_depth = 4.2;// 18.1..22.3 mm (4.0 mm speaker + 0.2 mm excursion)
+grille_wall      = 1.2;    // 22.3..23.5 mm dome wall
 
 // 4x M2 Boss Fastener Coordinates
 m2_bosses = [
@@ -274,14 +274,14 @@ module part_01_front() {
 // 3. BODY 02 — REAR SHELL (49.0 x 60.5 x 11.6 mm, Z = 12.7..24.3)
 // -----------------------------------------------------------------------------
 module speaker_grille_2d_pattern() {
-    circle(r = 0.7, $fn = 16);
-    for (ring = [1 : 6]) {
-        r_ring = 2.6 * ring;
-        n_holes = floor(180 / asin(2.4 / (2 * r_ring)));
-        for (h_idx = [0 : n_holes - 1]) {
-            angle = h_idx * (360 / n_holes);
-            translate([r_ring * cos(angle), r_ring * sin(angle)])
-                circle(r = 0.7, $fn = 16);
+    circle(r = 0.65, $fn = 20);
+    // 7 wide concentric rings covering up to r = 18.0 mm (razor-thin margin to 18.85 mm rim)
+    for (r = [2.6, 5.2, 7.8, 10.4, 13.0, 15.6, 18.0]) {
+        n_holes = round(2 * 3.14159 * r / 2.2);
+        for (a = [0 : 360/n_holes : 359.9]) {
+            rotate([0, 0, a])
+                translate([r, 0])
+                    circle(r = 0.65, $fn = 16);
         }
     }
 }
@@ -292,25 +292,25 @@ module part_02_rear() {
             // Flat Rear Body Blank (Z = 12.7 .. 19.5, flat at Z = 12.7 seam face, R1.5 fillet at rear face Z = 19.5)
             rear_shell_blank(bot_w, bot_h, seam, head_depth, corner_r, edge_r);
 
-            // Sculpted +4.8 mm Low-Profile Polished Speaker Dome (Z = 19.5 .. 24.3 mm, Ø45.6 mm flare)
+            // Sculpted Ultra-Thin Polished Speaker Dome (50-point C1-continuous cosine blend, 0.00 tangent at both ends)
             translate([speaker_x, speaker_y, 0])
-                rotate_extrude($fn = 72)
-                    polygon(points = [
-                        [0.0, pod_depth],
-                        [19.2, pod_depth],
-                        [19.7, pod_depth - 0.02],
-                        [20.2, pod_depth - 0.12],
-                        [20.7, pod_depth - 0.35],
-                        [21.1, pod_depth - 0.75],
-                        [21.5, pod_depth - 1.45],
-                        [21.8, pod_depth - 2.50],
-                        [22.1, pod_depth - 3.60],
-                        [22.4, head_depth + 0.30],
-                        [22.6, head_depth + 0.10],
-                        [22.8, head_depth],
-                        [22.8, 16.0],
-                        [0.0, 16.0]
-                    ]);
+                rotate_extrude($fn = 120) {
+                    curve_pts = [
+                        for (i = [0 : 50])
+                            let(t = i / 50.0)
+                            let(r = 18.85 + t * (22.85 - 18.85))
+                            let(z = head_depth + (pod_depth - head_depth) * 0.5 * (1 + cos(t * 180)))
+                            [r, z]
+                    ];
+                    polygon(concat(
+                        [[0.0, pod_depth]],
+                        [[18.85, pod_depth]],
+                        curve_pts,
+                        [[22.85, head_depth]],
+                        [[22.85, 16.0]],
+                        [[0.0, 16.0]]
+                    ));
+                }
         }
 
         // --- SUBTRACTIONS FROM REAR SHELL ---
@@ -349,13 +349,13 @@ module part_02_rear() {
                     cylinder(r = 21.05, h = 0.4 + 3*eps, $fn = 48);
             }
 
-        // 5. Speaker Pocket (Ø40.5 mm, Z = 18.1 .. 23.1)
+        // 5. Speaker Pocket (Ø40.5 mm, Z = 18.1 .. 22.3)
         translate([speaker_x, speaker_y, speaker_z - eps])
             cylinder(r = speaker_pocket_d / 2, h = speaker_pocket_depth + eps, $fn = 48);
 
-        // Wire-tab notch (1.5 x 3.0 x 4.8 mm at X = 44.25, Y = 37.5)
+        // Wire-tab notch (1.5 x 3.0 x 3.5 mm at X = 44.25, Y = 37.5)
         translate([44.25 - 1.5/2, speaker_y - 1.5, speaker_z])
-            cube([1.5, 3.0, 4.8]);
+            cube([1.5, 3.0, 3.5]);
 
         // 6. Fast Concentric Speaker Grille Cut (Single 2D Extrusion Operation!)
         translate([speaker_x, speaker_y, pod_depth - grille_wall - eps])
@@ -393,8 +393,8 @@ module part_02_rear() {
             }
         }
 
-        // 10. Rear Upper Mustache Deboss (14.4 x 9.0 mm, 0.40 mm deep at X = 24.5, Y = 8.25, Z = 19.5)
-        translate([speaker_x, 8.25, head_depth - 0.40])
+        // 10. Rear Upper Mustache Deboss (14.4 x 9.0 mm, 0.40 mm deep at X = 24.5, Y = 8.0, Z = 19.5)
+        translate([speaker_x, 8.0, head_depth - 0.40])
             mustache_deboss(0.40);
     }
 }
@@ -475,7 +475,7 @@ module dock_pocket_cutter(tilt_deg, floor_offset_z, pocket_center_y) {
 
             translate([49.6/2, 20.3, 23.0])
                 rotate([-90, 0, 0])
-                    cylinder(r = 22.4, h = 6.8 + eps, $fn = 48);
+                    cylinder(r = 22.5, h = 6.8 + eps, $fn = 48);
 
             translate([49.6/2 - 12.3/2, 20.3 - 10.0 - 4.2/2, -15.0])
                 cube([12.3, 4.2, 20.0]);
