@@ -264,9 +264,10 @@ module part_01_front() {
             }
         }
 
-        // 11. Front Chin Mustache Deboss (14.4 x 9.0 mm, 0.35 mm deep at X=24.5, Y=36.2, Z=0)
+        // 11. Front Chin Mustache Deboss (14.4 x 9.0 mm, 0.35 mm deep at X=24.5, Y=36.2, Z=0, upright eyes at -Y)
         translate([speaker_x, 36.2, 0])
-            mustache_deboss(0.35);
+            rotate([0, 0, 180])
+                mustache_deboss(0.35);
     }
 }
 
@@ -292,23 +293,22 @@ module part_02_rear() {
             // Flat Rear Body Blank (Z = 12.7 .. 19.5, flat at Z = 12.7 seam face, R1.5 fillet at rear face Z = 19.5)
             rear_shell_blank(bot_w, bot_h, seam, head_depth, corner_r, edge_r);
 
-            // Sculpted Ultra-Thin Polished Speaker Dome (50-point C1-continuous cosine blend, 0.00 tangent at both ends)
+            // Sculpted Ultra-Thin Polished Speaker Dome (50-point C1-continuous cosine blend, zero bottom fillet overflow)
             translate([speaker_x, speaker_y, 0])
                 rotate_extrude($fn = 120) {
                     curve_pts = [
                         for (i = [0 : 50])
                             let(t = i / 50.0)
-                            let(r = 18.85 + t * (22.85 - 18.85))
+                            let(r = 19.60 + t * (21.30 - 19.60))
                             let(z = head_depth + (pod_depth - head_depth) * 0.5 * (1 + cos(t * 180)))
                             [r, z]
                     ];
                     polygon(concat(
                         [[0.0, pod_depth]],
-                        [[18.85, pod_depth]],
+                        [[19.60, pod_depth]],
                         curve_pts,
-                        [[22.85, head_depth]],
-                        [[22.85, 16.0]],
-                        [[0.0, 16.0]]
+                        [[21.30, head_depth]],
+                        [[0.0, head_depth]]
                     ));
                 }
         }
@@ -393,9 +393,10 @@ module part_02_rear() {
             }
         }
 
-        // 10. Rear Upper Mustache Deboss (14.4 x 9.0 mm, 0.40 mm deep at X = 24.5, Y = 6.5, Z = 19.5)
+        // 10. Rear Upper Mustache Deboss (14.4 x 9.0 mm, 0.40 mm deep at X = 24.5, Y = 6.5, Z = 19.5, upright eyes at -Y)
         translate([speaker_x, 6.5, head_depth - 0.40])
-            mustache_deboss(0.40);
+            rotate([0, 0, 180])
+                mustache_deboss(0.40);
     }
 }
 
