@@ -27,7 +27,7 @@
     },
     "02_rear": {
       "filename": "02_Rear_shell.stl",
-      "volume_mm3": 5912.61,
+      "volume_mm3": 6318.82,
       "bounding_box_mm": [
         49.0,
         60.5,
@@ -47,7 +47,7 @@
       "bad_half_edges": 0,
       "components": 1,
       "watertight": true,
-      "sha256": "613dfdaea6a5d2d997c3f8e1f3cbb21122c24b0fea6251c47f80e91b0c41f9ef"
+      "sha256": "84d923e25c98448d4163c5f8478680c32a59d45b13e852b89bf1518ef212c0d8"
     },
     "03_baffle": {
       "filename": "03_Acoustic_baffle.stl",

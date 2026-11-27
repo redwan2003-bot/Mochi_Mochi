@@ -50,8 +50,8 @@ baffle_z         = 17.5;   // 4.8 mm LiPo bay Z (12.7..17.5; +0.8 mm swelling sa
 baffle_t         = 0.6;    // Circular acoustic baffle plate thickness
 speaker_z        = 18.1;   // baffle_z + baffle_t
 speaker_pocket_d = 40.5;
-speaker_pocket_depth = 4.2;// 18.1..22.3 mm (4.0 mm speaker + 0.2 mm excursion)
-grille_wall      = 1.2;    // 22.3..23.5 mm dome wall
+speaker_pocket_depth = 3.8;// 18.1..21.9 mm (speaker body pocket)
+grille_wall      = 1.6;    // 21.9..23.5 mm dome wall
 
 // 4x M2 Boss Fastener Coordinates
 m2_bosses = [
@@ -393,8 +393,8 @@ module part_02_rear() {
             }
         }
 
-        // 10. Rear Upper Mustache Deboss (14.4 x 9.0 mm, 0.40 mm deep at X = 24.5, Y = 8.0, Z = 19.5)
-        translate([speaker_x, 8.0, head_depth - 0.40])
+        // 10. Rear Upper Mustache Deboss (14.4 x 9.0 mm, 0.40 mm deep at X = 24.5, Y = 6.5, Z = 19.5)
+        translate([speaker_x, 6.5, head_depth - 0.40])
             mustache_deboss(0.40);
     }
 }
